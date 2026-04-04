@@ -1,0 +1,91 @@
+{
+  "version": "1.0",
+  "quiz": {
+    "id": "quiz-1776000000000",
+    "title": "General Knowledge Quiz",
+    "description": "A mix of basic true/false and multiple choice questions.",
+    "timerMinutes": 15,
+    "questions": [
+      {
+        "id": "q1776000000001",
+        "type": "true_false",
+        "question": "The Earth is flat.",
+        "options": ["True", "False"],
+        "correctAnswerIndex": 1,
+        "points": 5
+      },
+      {
+        "id": "q1776000000002",
+        "type": "true_false",
+        "question": "Water boils at 100°C.",
+        "options": ["True", "False"],
+        "correctAnswerIndex": 0,
+        "points": 5
+      },
+      {
+        "id": "q1776000000003",
+        "type": "multiple_choice",
+        "question": "Which planet is known as the Red Planet?",
+        "options": ["Earth", "Mars", "Jupiter", "Venus"],
+        "correctAnswerIndex": 1,
+        "points": 5
+      },
+      {
+        "id": "q1776000000004",
+        "type": "multiple_choice",
+        "question": "What is the capital of Japan?",
+        "options": ["Seoul", "Beijing", "Tokyo", "Bangkok"],
+        "correctAnswerIndex": 2,
+        "points": 5
+      },
+      {
+        "id": "q1776000000005",
+        "type": "true_false",
+        "question": "Humans have 5 senses.",
+        "options": ["True", "False"],
+        "correctAnswerIndex": 0,
+        "points": 5
+      },
+      {
+        "id": "q1776000000006",
+        "type": "multiple_choice",
+        "question": "Which language is used for web apps?",
+        "options": ["Python", "JavaScript", "C++", "Java"],
+        "correctAnswerIndex": 1,
+        "points": 5
+      },
+      {
+        "id": "q1776000000007",
+        "type": "true_false",
+        "question": "The sun rises in the west.",
+        "options": ["True", "False"],
+        "correctAnswerIndex": 1,
+        "points": 5
+      },
+      {
+        "id": "q1776000000008",
+        "type": "multiple_choice",
+        "question": "Which is the largest ocean?",
+        "options": ["Atlantic Ocean", "Indian Ocean", "Pacific Ocean", "Arctic Ocean"],
+        "correctAnswerIndex": 2,
+        "points": 5
+      },
+      {
+        "id": "q1776000000009",
+        "type": "true_false",
+        "question": "Light travels faster than sound.",
+        "options": ["True", "False"],
+        "correctAnswerIndex": 0,
+        "points": 5
+      },
+      {
+        "id": "q1776000000010",
+        "type": "multiple_choice",
+        "question": "Which device is used to input text into a computer?",
+        "options": ["Monitor", "Keyboard", "Mouse", "Printer"],
+        "correctAnswerIndex": 1,
+        "points": 5
+      }
+    ]
+  }
+}

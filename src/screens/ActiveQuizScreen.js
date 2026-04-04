@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView } from 'react-native';
-import { ClockIcon, XMarkIcon, CheckCircleIcon, XCircleIcon } from 'react-native-heroicons/outline';
+import { ClockIcon, XMarkIcon, CheckCircleIcon, XCircleIcon, SpeakerWaveIcon } from 'react-native-heroicons/outline';
 import { useQuizStore } from '../store/useQuizStore'; 
 import { playSound } from '../utils/soundHelper'; 
+import * as Speech from 'expo-speech';
 
 export default function ActiveQuizScreen({ route, navigation }) {
-  const { quiz, timerMode, timeValue, immediateFeedback, shuffleQuestions } = route.params;
+  // Grab autoSpeak from params
+  const { quiz, timerMode, timeValue, immediateFeedback, shuffleQuestions, autoSpeak } = route.params;
 
-  // 2. PULL SOUND EFFECTS TOGGLE FROM STORE
   const { theme, soundEffects } = useQuizStore();
   const isDark = theme === 'dark';
 
@@ -17,6 +18,7 @@ export default function ActiveQuizScreen({ route, navigation }) {
   const [selectedAnswer, setSelectedAnswer] = useState('');
   const [timeLeft, setTimeLeft] = useState(null);
   const [isEvaluated, setIsEvaluated] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false); 
   
   const [answerHistory, setAnswerHistory] = useState([]);
 
@@ -27,7 +29,22 @@ export default function ActiveQuizScreen({ route, navigation }) {
 
     if (timerMode === 'entire_quiz') setTimeLeft(timeValue * 60);
     else if (timerMode === 'per_question') setTimeLeft(timeValue);
+
+    return () => {
+      Speech.stop();
+    };
   }, []);
+
+  // --- NEW: AUTO-SPEAK TRIGGER ---
+  useEffect(() => {
+    if (autoSpeak && questions.length > 0) {
+      // Add a slight delay (400ms) so it doesn't speak before the UI transitions
+      const timer = setTimeout(() => {
+        handleSpeakQuestion(true); 
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [currentIndex, questions, autoSpeak]);
 
   useEffect(() => {
     if (timerMode === 'none' || timeLeft === null || isEvaluated) return;
@@ -40,7 +57,33 @@ export default function ActiveQuizScreen({ route, navigation }) {
     return () => clearInterval(intervalId);
   }, [timeLeft, timerMode, isEvaluated, score, answerHistory]);
 
+  // Updated to accept a 'forcePlay' argument so auto-speak can override user toggles
+  const handleSpeakQuestion = (forcePlay = false) => {
+    if (isSpeaking && !forcePlay) {
+      Speech.stop();
+      setIsSpeaking(false);
+      return;
+    }
+
+    const currentQ = questions[currentIndex];
+    if (!currentQ) return;
+
+    Speech.stop(); // Clear any ongoing speech first
+    setIsSpeaking(true);
+    
+    Speech.speak(currentQ.question, {
+      pitch: 1.0,
+      rate: 0.9,
+      onDone: () => setIsSpeaking(false),
+      onStopped: () => setIsSpeaking(false),
+      onError: () => setIsSpeaking(false),
+    });
+  };
+
   const handlePrimaryAction = (isTimeOut = false) => {
+    Speech.stop(); // Stop reading if they click Next/Check
+    setIsSpeaking(false);
+
     const currentQ = questions[currentIndex];
     
     let isCorrect = false;
@@ -54,14 +97,13 @@ export default function ActiveQuizScreen({ route, navigation }) {
 
     const pointsEarned = isCorrect ? (currentQ.points || 1) : 0;
 
-    // 3. PLAY SOUNDS DURING IMMEDIATE FEEDBACK
     if (immediateFeedback && !isEvaluated && !isTimeOut) {
       setIsEvaluated(true);
       if (isCorrect) {
         setScore((prev) => prev + pointsEarned);
-        playSound('correct', soundEffects); // Play Ding!
+        playSound('correct', soundEffects); 
       } else {
-        playSound('wrong', soundEffects);   // Play Buzz!
+        playSound('wrong', soundEffects);   
       }
       return; 
     }
@@ -93,6 +135,7 @@ export default function ActiveQuizScreen({ route, navigation }) {
   };
 
   const finishQuiz = (finalScore, finalHistory) => {
+    Speech.stop();
     const totalPoints = questions.reduce((sum, q) => sum + (q.points || 1), 0);
     useQuizStore.getState().addQuizHistory({
       id: Date.now().toString(),
@@ -123,25 +166,40 @@ export default function ActiveQuizScreen({ route, navigation }) {
 
   return (
     <View className={`flex-1 pt-14 px-5 ${isDark ? 'bg-[#0f172a]' : 'bg-gray-50'}`}>
-      {/* Header Info */}
+      
       <View className="flex-row justify-between items-center mb-6">
-        <TouchableOpacity onPress={() => navigation.goBack()} className={`p-2 rounded-full shadow-sm ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+        <TouchableOpacity 
+          onPress={() => {
+            Speech.stop(); 
+            navigation.goBack();
+          }} 
+          className={`p-2 rounded-full shadow-sm ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+        >
           <XMarkIcon color="#ef4444" size={24} />
         </TouchableOpacity>
-        {timerMode !== 'none' && (
-          <View className={`px-4 py-2 rounded-full shadow-sm flex-row items-center ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
-            <ClockIcon 
-              color={timeLeft < 10 && timerMode === 'per_question' ? '#ef4444' : (isDark ? '#818cf8' : '#1e3a8a')} 
-              size={20} 
-            />
-            <Text className={`font-bold ml-2 ${timeLeft < 10 && timerMode === 'per_question' ? 'text-red-500' : (isDark ? 'text-indigo-300' : 'text-blue-900')}`}>
-              {formatTime(timeLeft)}
-            </Text>
-          </View>
-        )}
+
+        <View className="flex-row items-center">
+          <TouchableOpacity 
+            onPress={() => handleSpeakQuestion(false)} // Pass false to allow toggling off manually
+            className={`p-2 rounded-full shadow-sm ${timerMode !== 'none' ? 'mr-3' : ''} ${isSpeaking ? (isDark ? 'bg-indigo-900/80 border border-indigo-500' : 'bg-indigo-100 border border-indigo-300') : (isDark ? 'bg-gray-800 border border-transparent' : 'bg-white border border-transparent')}`}
+          >
+            <SpeakerWaveIcon color={isSpeaking ? (isDark ? "#a5b4fc" : "#4f46e5") : (isDark ? "#9ca3af" : "#6b7280")} size={22} />
+          </TouchableOpacity>
+
+          {timerMode !== 'none' && (
+            <View className={`px-4 py-2 rounded-full shadow-sm flex-row items-center ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+              <ClockIcon 
+                color={timeLeft < 10 && timerMode === 'per_question' ? '#ef4444' : (isDark ? '#818cf8' : '#1e3a8a')} 
+                size={20} 
+              />
+              <Text className={`font-bold ml-2 ${timeLeft < 10 && timerMode === 'per_question' ? 'text-red-500' : (isDark ? 'text-indigo-300' : 'text-blue-900')}`}>
+                {formatTime(timeLeft)}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
-      {/* Progress Bar */}
       <Text className={`font-bold tracking-widest uppercase text-xs mb-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
         Question {currentIndex + 1} of {questions.length}
       </Text>
@@ -150,6 +208,7 @@ export default function ActiveQuizScreen({ route, navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+        
         <Text className={`text-2xl font-bold mb-8 leading-8 ${isDark ? 'text-white' : 'text-gray-800'}`}>
           {currentQ.question}
         </Text>
@@ -160,7 +219,6 @@ export default function ActiveQuizScreen({ route, navigation }) {
               const isSelected = selectedAnswer === option;
               const isCorrectAnswer = currentQ.correctAnswerIndex === idx;
               
-              // Dynamic Theme-based Class Names
               let borderClass = isSelected 
                 ? (isDark ? 'border-indigo-500' : 'border-blue-600') 
                 : (isDark ? 'border-gray-800' : 'border-gray-200');
@@ -234,7 +292,6 @@ export default function ActiveQuizScreen({ route, navigation }) {
         </View>
       </ScrollView>
 
-      {/* Primary Action Button */}
       <View className="pb-8 pt-4">
         <TouchableOpacity 
           onPress={() => handlePrimaryAction(false)}

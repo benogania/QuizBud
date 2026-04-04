@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Switch } from 'react-native';
-import { useQuizStore } from '../store/useQuizStore'; // Import the store
+import { useQuizStore } from '../store/useQuizStore'; 
 import { 
   ChevronLeftIcon, 
   ClockIcon, 
@@ -8,27 +8,25 @@ import {
   ListBulletIcon,
   CheckCircleIcon,
   PencilSquareIcon,
-  Cog6ToothIcon 
+  Cog6ToothIcon,
+  SpeakerWaveIcon 
 } from 'react-native-heroicons/outline';
 
 export default function QuizPlayer({ route, navigation }) {
-  // Pull theme from the store
   const { theme } = useQuizStore();
   const isDark = theme === 'dark';
 
-  // Extract the quiz data securely
   const { quiz } = route.params || {};
   const questions = quiz?.questions || [];
 
-  // Setup local state for the Timer Settings
   const [timerMode, setTimerMode] = useState('none'); 
   const [timeValue, setTimeValue] = useState(15); 
 
-  // State for Gameplay Rules (Toggles)
+  // State for Gameplay Rules
   const [shuffleQuestions, setShuffleQuestions] = useState(true); 
   const [immediateFeedback, setImmediateFeedback] = useState(true); 
+  const [autoSpeak, setAutoSpeak] = useState(false); // <-- NEW: Auto-Speak State
 
-  // Calculate question breakdowns dynamically
   const totalQuestions = questions.length;
   const mcqCount = questions.filter(q => q.type === 'multiple_choice').length;
   const tfCount = questions.filter(q => q.type === 'true_false').length;
@@ -46,7 +44,7 @@ export default function QuizPlayer({ route, navigation }) {
 
   return (
     <View className={`flex-1 ${isDark ? 'bg-[#0f172a]' : 'bg-gray-50'}`}>
-      {/* Header */}
+      
       <View className={`flex-row items-center pt-14 pb-4 px-5 border-b ${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-100 shadow-sm shadow-gray-200'}`}>
         <TouchableOpacity onPress={() => navigation.goBack()} className="p-2 -ml-2">
           <ChevronLeftIcon color={isDark ? "white" : "#1e3a8a"} size={24} />
@@ -56,7 +54,6 @@ export default function QuizPlayer({ route, navigation }) {
 
       <ScrollView className="flex-1 px-5 pt-6" contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         
-        {/* Quiz Info Card */}
         <View className={`rounded-3xl p-6 mb-6 shadow-sm ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
           <Text className={`text-2xl font-black mb-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>{quiz?.title || 'Unknown Quiz'}</Text>
           <Text className={`mb-6 leading-6 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -93,7 +90,6 @@ export default function QuizPlayer({ route, navigation }) {
           </View>
         </View>
 
-        {/* Gameplay Rules Card */}
         <View className={`rounded-3xl p-6 shadow-sm mb-6 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
           <View className="flex-row items-center justify-between mb-5">
             <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Gameplay Rules</Text>
@@ -115,7 +111,7 @@ export default function QuizPlayer({ route, navigation }) {
           </View>
 
           {/* Immediate Feedback Toggle */}
-          <View className="flex-row justify-between items-center">
+          <View className={`flex-row justify-between items-center mb-4 border-b pb-4 ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
             <View className="flex-1 pr-4">
               <Text className={`font-bold ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>Show Mistakes</Text>
               <Text className="text-xs text-gray-500">Reveal correct answers immediately</Text>
@@ -127,16 +123,30 @@ export default function QuizPlayer({ route, navigation }) {
               thumbColor={immediateFeedback ? "#ffffff" : "#9ca3af"}
             />
           </View>
+
+          {/* Auto-Speak Toggle */}
+          <View className="flex-row justify-between items-center">
+            <View className="flex-1 pr-4">
+              <Text className={`font-bold flex-row items-center ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>
+                Auto-Read Questions
+              </Text>
+              <Text className="text-xs text-gray-500">Speak questions automatically</Text>
+            </View>
+            <Switch 
+              value={autoSpeak} 
+              onValueChange={setAutoSpeak}
+              trackColor={{ false: isDark ? "#374151" : "#d1d5db", true: "#6366f1" }}
+              thumbColor={autoSpeak ? "#ffffff" : "#9ca3af"}
+            />
+          </View>
         </View>
 
-        {/* Timer Setup Card */}
         <View className={`rounded-3xl p-6 shadow-sm mb-6 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
           <View className="flex-row items-center justify-between mb-5">
             <Text className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>Timer Settings</Text>
             <ClockIcon color={isDark ? "#9ca3af" : "#6b7280"} size={24} />
           </View>
 
-          {/* Timer Mode Selectors */}
           <View className={`flex-row justify-between mb-6 p-1 rounded-2xl ${isDark ? 'bg-gray-900' : 'bg-gray-100'}`}>
             <TouchableOpacity 
               onPress={() => handleModeChange('none')}
@@ -160,7 +170,6 @@ export default function QuizPlayer({ route, navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* Time Adjuster */}
           {timerMode !== 'none' && (
             <View className={`flex-row items-center justify-between p-4 rounded-2xl border ${isDark ? 'bg-indigo-900/20 border-indigo-900/50' : 'bg-indigo-50 border-indigo-100'}`}>
               <Text className={`font-medium flex-1 ${isDark ? 'text-indigo-200' : 'text-indigo-900'}`}>
@@ -184,7 +193,6 @@ export default function QuizPlayer({ route, navigation }) {
           )}
         </View>
 
-        {/* Start Button */}
         <TouchableOpacity 
           className={`flex-row justify-center items-center py-4 rounded-full shadow-md ${isDark ? 'bg-indigo-600' : 'bg-blue-900 shadow-blue-300'}`}
           onPress={() => {
@@ -193,7 +201,8 @@ export default function QuizPlayer({ route, navigation }) {
               timerMode: timerMode,
               timeValue: timeValue,
               shuffleQuestions: shuffleQuestions,
-              immediateFeedback: immediateFeedback 
+              immediateFeedback: immediateFeedback,
+              autoSpeak: autoSpeak // <-- NEW: Pass parameter to ActiveQuiz
             });
           }}
         >

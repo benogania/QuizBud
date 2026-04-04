@@ -1,22 +1,22 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useQuizStore } from '../store/useQuizStore'; // Import the store
+import { useQuizStore } from '../store/useQuizStore'; 
 import { 
   BookOpenIcon as LibraryIcon, 
-  PlayIcon, 
+  AcademicCapIcon, 
   ChartBarIcon, 
   Cog6ToothIcon 
 } from 'react-native-heroicons/outline';
 import { 
   BookOpenIcon as LibraryIconSolid, 
-  PlayIcon as PlayIconSolid, 
+  AcademicCapIcon as AcademicCapIconSolid, 
   ChartBarIcon as ChartBarIconSolid, 
   Cog6ToothIcon as Cog6ToothIconSolid 
 } from 'react-native-heroicons/solid';
 
 // Import your tab screens
 import LibraryScreen from '../screens/LibraryScreen';
-import PlayScreen from '../screens/PlayScreen';
+import LearnScreen from '../screens/LearnScreen'; 
 import StatsScreen from '../screens/StatsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 
@@ -49,8 +49,8 @@ export default function TabNavigator() {
         tabBarIcon: ({ focused, color, size }) => {
           if (route.name === 'Library') {
             return focused ? <LibraryIconSolid size={size} color={color} /> : <LibraryIcon size={size} color={color} />;
-          } else if (route.name === 'Play') {
-            return focused ? <PlayIconSolid size={size} color={color} /> : <PlayIcon size={size} color={color} />;
+          } else if (route.name === 'Learn') { 
+            return focused ? <AcademicCapIconSolid size={size} color={color} /> : <AcademicCapIcon size={size} color={color} />;
           } else if (route.name === 'Stats') {
             return focused ? <ChartBarIconSolid size={size} color={color} /> : <ChartBarIcon size={size} color={color} />;
           } else if (route.name === 'Settings') {
@@ -60,7 +60,7 @@ export default function TabNavigator() {
       })}
     >
       <Tab.Screen name="Library" component={LibraryScreen} />
-      <Tab.Screen name="Play" component={PlayScreen} />
+      <Tab.Screen name="Learn" component={LearnScreen} />
       <Tab.Screen name="Stats" component={StatsScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>

@@ -18,11 +18,14 @@ import SurvivalModeScreen from './src/screens/SurvivalModeScreen';
 // import WordArchitectScreen from './src/screens/WordArchitectScreen';
 import MatchMasterScreen from './src/screens/MatchMasterScreen';
 import AIAssistantScreen from './src/screens/AIAssistantScreen';
-// import QuizPreviewScreen from './src/screens/QuizPreviewScreen';
 // import CustomSplashScreen from './src/screens/CustomSplashScreen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 // import * as SplashScreen from 'expo-splash-screen';
 import CollectionScreen from './src/screens/CollectionScreen';
+import SpellingScreen from './src/screens/SpellingScreen';
+import GrammarScreen from './src/screens/GrammarScreen';
+import GrammarPracticeScreen from './src/screens/GrammarPracticeScreen';
+import SpeakingScreen from './src/screens/SpeakingScreen';
 
 
 // SplashScreen.preventAutoHideAsync();
@@ -88,12 +91,16 @@ export default function App() {
         <Stack.Screen name="EditQuiz" component={EditQuizScreen} />
         <Stack.Screen name="CreateQuiz" component={CreateQuizScreen} />
         <Stack.Screen name="AIAssistant" component={AIAssistantScreen} />
-        <Stack.Screen name="CollectionScreen" component={CollectionScreen} /> 
+        <Stack.Screen name="CollectionScreen" component={CollectionScreen} />
+        <Stack.Screen name="GrammarScreen" component={GrammarScreen} />
+        <Stack.Screen name="GrammarPracticeScreen" component={GrammarPracticeScreen} />
+        <Stack.Screen name="SpeakingScreen" component={SpeakingScreen} />
 
         <Stack.Screen name="Flashcards" component={FlashcardScreen} />
         <Stack.Screen name="TimeAttack" component={TimeAttackScreen} />
         <Stack.Screen name="SurvivalMode" component={SurvivalModeScreen} />
         <Stack.Screen name="MatchMaster" component={MatchMasterScreen} />
+        <Stack.Screen name="SpellingScreen" component={SpellingScreen} />
         {/* <Stack.Screen name="QuizPreview" component={QuizPreviewScreen} /> */}
 
 

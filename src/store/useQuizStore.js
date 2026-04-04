@@ -16,6 +16,17 @@ export const useQuizStore = create(
       aiTone: 'Standard',
       setAiTone: (tone) => set({ aiTone: tone }),
 
+      spellingData: [],
+      setSpellingData: (data) => set({ spellingData: data }),
+
+      // Add these to your Zustand store state
+      grammarPracticeData: [],
+      setGrammarPracticeData: (data) => set({ grammarPracticeData: data }),
+
+      // Add these to your Zustand store state
+      speakingScenarios: [],
+      setSpeakingScenarios: (data) => set({ speakingScenarios: data }),
+
       clearHistory: () => set({ quizHistory: [] }),
 
       setDailyChallenge: (quiz) =>

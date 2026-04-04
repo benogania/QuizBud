@@ -1,11 +1,11 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// 1. Define your two different API keys
+// 1. Define your API keys
 const API_KEYS = [
   'AIzaSyBURb6WzynNjCtyiXon9uE1XfJu3u9Lr4w', // Account 1
-  'AIzaSyAGjsjGvPln90hcBbvA6KVMf6CDAQ9RuN4',  // Account 2
+  'AIzaSyAGjsjGvPln90hcBbvA6KVMf6CDAQ9RuN4', // Account 2
   'AIzaSyCjda2M3VrsjRdxS9FB2caD0KAwiv2lWUo', // Account 3 
-  'AIzaSyDM2DbS_Utn522eR-8siaCODBAUbvHabio' // gwen's key for testing
+  'AIzaSyB3PMscZwSzlyU6tTp6WrqUM9uOxYcqA2E'  // gwen's key for testing
 ];
 
 const callGeminiWithFallback = async (prompt, isJson = true, fileData = null) => {
@@ -15,7 +15,7 @@ const callGeminiWithFallback = async (prompt, isJson = true, fileData = null) =>
     const genAI = new GoogleGenerativeAI(currentKey);
     try {
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash", // Using the 2026 flagship flash model
+        model: "gemini-2.5-flash", // Using the flagship flash model
         generationConfig: isJson ? { responseMimeType: "application/json" } : {}
       });
 
@@ -52,7 +52,7 @@ const callGeminiWithFallback = async (prompt, isJson = true, fileData = null) =>
   }
 };
 
-//THE STRICT QUIZ GENERATOR (Custom GPT)
+// THE STRICT QUIZ GENERATOR (Custom GPT)
 export const generateQuizWithAI = (topic, numQuestions = 5, fileData = null) => {
   const prompt = `
     ACT AS AN EXPERT EXAM CREATOR.
@@ -86,7 +86,7 @@ export const generateQuizWithAI = (topic, numQuestions = 5, fileData = null) => 
   return callGeminiWithFallback(prompt, true, fileData);
 };
 
-// 2. THE CHAT ASSISTANT (With File Awareness)
+// THE CHAT ASSISTANT (With File Awareness)
 export const askAIAssistant = (chatHistory, newMessage, fileData = null) => {
   const context = chatHistory.slice(-5).map(m => `${m.role}: ${m.text}`).join('\n');
   
@@ -105,7 +105,6 @@ export const askAIAssistant = (chatHistory, newMessage, fileData = null) => {
   
   return callGeminiWithFallback(prompt, false, fileData);
 };
-// ... existing keys and callGeminiWithFallback code ...
 
 export const generateDailyChallenge = async () => {
   const prompt = `
@@ -136,7 +135,6 @@ export const generateDailyChallenge = async () => {
     3. Do not include any text outside of the JSON object.
   `;
 
-  // We call the fallback wrapper you already have
   const result = await callGeminiWithFallback(prompt, true);
   return result;
 };
@@ -157,8 +155,6 @@ export const generateStudyRecommendation = (stats) => {
   return callGeminiWithFallback(prompt, true);
 };
 
-
-// Add this export to the bottom of src/services/geminiService.js
 export const generateWordArchitectQuiz = async (quizQuestions) => {
   const prompt = `
     ACT AS A GAME DESIGNER. 
@@ -181,6 +177,112 @@ export const generateWordArchitectQuiz = async (quizQuestions) => {
       ]
     }
   `;
-  // Use your fallback wrapper!
+  return callGeminiWithFallback(prompt, true);
+};
+
+// --- NEW: SPELLING & VOCABULARY GENERATOR ---
+export const generateSpellingWords = async () => {
+  const prompt = `
+    ACT AS AN ENGLISH LINGUISTICS PROFESSOR.
+    Generate a list of 15 challenging but useful spelling and vocabulary words for a high school or college level.
+
+    YOU MUST RETURN ONLY A RAW JSON ARRAY OF OBJECTS WITH THIS EXACT STRUCTURE:
+    [
+      {
+        "word": "The spelling word",
+        "definition": "A brief definition",
+        "sentence": "An example sentence using the word, but replace the actual word with '______'"
+      }
+    ]
+  `;
+  // Leverage the fallback wrapper for automatic parsing and key rotation
+  return callGeminiWithFallback(prompt, true);
+};
+
+
+// --- NEW: GRAMMAR & WRITING COACH ---
+export const improveGrammar = async (userText) => {
+  const prompt = `
+    ACT AS AN EXPERT ENGLISH GRAMMAR COACH AND NATIVE SPEAKER.
+    The user wants to improve their grammar, spelling, and natural speaking flow.
+    Review this text: "${userText}"
+
+    YOU MUST RETURN ONLY A RAW JSON OBJECT WITH THIS EXACT STRUCTURE:
+    {
+      "correctedText": "The fully corrected, highly natural-sounding version of the text.",
+      "improvements": [
+        "A short bullet point explaining a specific grammar rule you fixed (e.g., 'Changed X to Y because...').",
+        "A short bullet point explaining a vocabulary enhancement."
+      ]
+    }
+  `;
+  // Leverage your fallback wrapper!
+  return callGeminiWithFallback(prompt, true);
+};
+
+// --- NEW: GRAMMAR FILL-IN-THE-BLANKS GENERATOR ---
+// --- UPDATED: OVERALL GRAMMAR FILL-IN-THE-BLANKS GENERATOR ---
+export const generateGrammarPractice = async () => {
+  const prompt = `
+    ACT AS AN ENGLISH LINGUISTICS PROFESSOR.
+    Generate a list of 20 challenging fill-in-the-blank English grammar questions suitable for high school or college level. 
+    Focus on a diverse mix of OVERALL grammar skills. You must include a variety of topics such as:
+    - Subject-verb agreement
+    - Advanced verb tenses (e.g., past perfect continuous)
+    - Prepositions and phrasal verbs
+    - Conditional clauses (If I had known...)
+    - Relative pronouns and modifiers
+    DO NOT just focus on transition words. Make it a well-rounded grammar test.
+
+    YOU MUST RETURN ONLY A RAW JSON ARRAY OF OBJECTS WITH THIS EXACT STRUCTURE:
+    [
+      {
+        "sentenceWithBlank": "Neither the manager nor the employees ______ aware of the new policy before the meeting.",
+        "options": ["was", "were", "is", "are"],
+        "correctAnswer": "were",
+        "explanation": "When using 'neither/nor', the verb must agree with the subject closest to it. Since 'employees' is plural, 'were' is the correct past-tense plural verb."
+      }
+    ]
+  `;
+  
+  // Leverage your fallback wrapper!
+  return callGeminiWithFallback(prompt, true);
+};
+
+
+// --- NEW: SPEAKING & CONVERSATION COACH ---
+export const generateSpeakingScenarios = async () => {
+  const prompt = `
+    ACT AS AN ENGLISH CONVERSATION COACH.
+    Generate 5 everyday, real-life scenarios for a student to practice spoken English. 
+    Make them realistic (e.g., ordering coffee, apologizing, asking for directions, making small talk).
+
+    YOU MUST RETURN ONLY A RAW JSON ARRAY OF OBJECTS WITH THIS EXACT STRUCTURE:
+    [
+      {
+        "id": "unique-id",
+        "title": "At the Coffee Shop",
+        "scenario": "You want to order a medium iced latte with oat milk, but you need to ask if oat milk costs extra."
+      }
+    ]
+  `;
+  return callGeminiWithFallback(prompt, true);
+};
+
+export const evaluateSpeakingResponse = async (scenario, userResponse) => {
+  const prompt = `
+    ACT AS A NATIVE ENGLISH SPEAKING COACH.
+    Scenario: "${scenario}"
+    Student's spoken response: "${userResponse}"
+
+    Evaluate this for everyday SPOKEN English (not formal textbook writing).
+    
+    YOU MUST RETURN ONLY A RAW JSON OBJECT WITH THIS EXACT STRUCTURE:
+    {
+      "feedback": "Brief, encouraging feedback explaining what they did well and what sounded slightly unnatural.",
+      "nativeAlternative": "Exactly what a native speaker would actually say (use contractions, natural flow, casual phrasing).",
+      "pronunciationTip": "A short tip on how to pronounce it naturally (e.g., 'link the words 'want to' into 'wanna'')."
+    }
+  `;
   return callGeminiWithFallback(prompt, true);
 };

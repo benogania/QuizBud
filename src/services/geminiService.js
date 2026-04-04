@@ -4,7 +4,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const API_KEYS = [
   'AIzaSyBURb6WzynNjCtyiXon9uE1XfJu3u9Lr4w', // Account 1
   'AIzaSyAGjsjGvPln90hcBbvA6KVMf6CDAQ9RuN4',  // Account 2
-  'AIzaSyCjda2M3VrsjRdxS9FB2caD0KAwiv2lWUo' // Account 3 
+  'AIzaSyCjda2M3VrsjRdxS9FB2caD0KAwiv2lWUo', // Account 3 
+  'AIzaSyDM2DbS_Utn522eR-8siaCODBAUbvHabio' // gwen's key for testing
 ];
 
 const callGeminiWithFallback = async (prompt, isJson = true, fileData = null) => {

@@ -12,6 +12,9 @@ export const useQuizStore = create(
       lastDailyFetch: null,
       soundEffects: true,
       hapticsEnabled: true,
+      // Add these two lines to your state:
+      aiTone: 'Standard',
+      setAiTone: (tone) => set({ aiTone: tone }),
 
       clearHistory: () => set({ quizHistory: [] }),
 

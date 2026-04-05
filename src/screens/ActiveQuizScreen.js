@@ -150,7 +150,8 @@ export default function ActiveQuizScreen({ route, navigation }) {
       score: finalScore,
       totalPoints: totalPoints,
       history: finalHistory,
-      quizTitle: quiz.title
+      quizTitle: quiz.title,
+      quiz: route.params.quiz
     });
   };
 

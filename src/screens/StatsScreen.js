@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Animated, Dimensions } from 'react-native';
 import { useQuizStore } from '../store/useQuizStore';
 import { generateStudyRecommendation } from '../services/geminiService';
 
@@ -12,8 +12,41 @@ import {
   AcademicCapIcon
 } from 'react-native-heroicons/solid';
 
+// --- CUSTOM ANIMATED NUMBER COMPONENT ---
+const AnimatedNumber = ({ value, format, trigger, textClass }) => {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    if (!trigger) return;
+    let start = 0;
+    const duration = 1500; // 1.5 seconds to count up
+    const end = parseFloat(value) || 0;
+    const startTime = Date.now();
+
+    const animate = () => {
+      const now = Date.now();
+      const progress = Math.min((now - startTime) / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 4); // easeOutQuart
+      setDisplayValue(start + (end - start) * easeProgress);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+    requestAnimationFrame(animate);
+  }, [value, trigger]);
+
+  let formatted = Math.round(displayValue);
+  if (format === 'hours') formatted = displayValue.toFixed(1);
+
+  return (
+    <Text className={textClass}>
+      {formatted}{format === 'percent' ? '%' : format === 'hours' ? 'h' : ''}
+    </Text>
+  );
+};
+
 export default function StatsScreen() {
-  // 1. Destructure the new caching variables from your store
   const { 
     quizHistory = [], 
     quizzes = [], 
@@ -26,8 +59,50 @@ export default function StatsScreen() {
   const isDark = theme === 'dark';
   const [viewMode, setViewMode] = useState('weekly'); 
 
-  // --- AI INSIGHT STATE ---
-  // Initialize with cached data if available to prevent flickering
+  // --- ANIMATION STATES ---
+  const graphAnim = useRef(new Animated.Value(0)).current;
+  const habitsAnim = useRef(new Animated.Value(0)).current;
+
+  const [triggerMetrics, setTriggerMetrics] = useState(false);
+  const [triggerHabits, setTriggerHabits] = useState(false);
+
+  const [metricsY, setMetricsY] = useState(9999);
+  const [habitsY, setHabitsY] = useState(9999);
+  const windowHeight = Dimensions.get('window').height;
+
+  // Trigger Graph animations immediately (or on ViewMode change)
+  useEffect(() => {
+    graphAnim.setValue(0);
+    Animated.timing(graphAnim, {
+      toValue: 1,
+      duration: 1000,
+      useNativeDriver: false, // Must be false for height interpolation
+    }).start();
+  }, [viewMode]);
+
+  // Handle Initial Layout Visibility (If screen is big enough to see without scrolling)
+  useEffect(() => {
+    if (windowHeight >= metricsY && !triggerMetrics) setTriggerMetrics(true);
+    if (windowHeight >= habitsY && !triggerHabits) {
+      setTriggerHabits(true);
+      Animated.timing(habitsAnim, { toValue: 1, duration: 1200, useNativeDriver: false }).start();
+    }
+  }, [metricsY, habitsY]);
+
+  // Handle Scroll Visibility
+  const handleScroll = (e) => {
+    const scrollY = e.nativeEvent.contentOffset.y;
+    const bottomOfScreen = scrollY + windowHeight - 100; // 100px buffer before triggering
+
+    if (bottomOfScreen >= metricsY && !triggerMetrics) {
+      setTriggerMetrics(true);
+    }
+    if (bottomOfScreen >= habitsY && !triggerHabits) {
+      setTriggerHabits(true);
+      Animated.timing(habitsAnim, { toValue: 1, duration: 1200, useNativeDriver: false }).start();
+    }
+  };
+
   const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
   const [aiInsight, setAiInsight] = useState(aiStatsInsight || {
     title: "Analyzing...",
@@ -42,7 +117,7 @@ export default function StatsScreen() {
   const currentMonthName = monthNames[currentMonthIndex];
   const previousMonthName = monthNames[previousMonthIndex];
 
-  // --- DATA PROCESSING LOGIC (Keep existing) ---
+  // --- DATA PROCESSING LOGIC ---
   const stats = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -156,7 +231,6 @@ export default function StatsScreen() {
     const fetchInsight = async () => {
       const today = new Date().toDateString();
 
-      // 1. If no history exists, reset local state and stop
       if (quizHistory.length === 0) {
         setAiInsight({
           title: "Welcome to QuizBud!",
@@ -167,14 +241,12 @@ export default function StatsScreen() {
         return;
       }
 
-      // 2. CHECK CACHE: Only proceed if there is NO cached insight OR it's from a different day
       if (aiStatsInsight && lastStatsFetch === today) {
-        setAiInsight(aiStatsInsight); // Pull from Zustand
+        setAiInsight(aiStatsInsight); 
         setIsGeneratingInsight(false);
         return;
       }
 
-      // 3. If cache is empty or old, trigger the API
       setIsGeneratingInsight(true);
       try {
         const summaryForAI = {
@@ -186,13 +258,11 @@ export default function StatsScreen() {
 
         const result = await generateStudyRecommendation(summaryForAI);
         
-        // 4. Update the Cache in the Store
         if (setAiStatsInsight) {
             setAiStatsInsight(result);
         }
         setAiInsight(result);
       } catch (error) {
-        // Fallback
         setAiInsight({
           title: "Keep up the hard work!",
           message: "Your progress is steady. Focus on reviewing subjects where your mastery is below 70%.",
@@ -204,14 +274,20 @@ export default function StatsScreen() {
     };
 
     fetchInsight();
-  }, [quizHistory.length]); // We still listen for quiz length to refresh if they just finished a quiz today
+  }, [quizHistory.length]); 
 
   const subjectIcons = [BeakerIcon, CalculatorIcon, BookOpenIcon, AcademicCapIcon];
 
   return (
     <View className={`flex-1 pt-12 ${isDark ? 'bg-[#0f172a]' : 'bg-gray-50'}`}>
 
-      <ScrollView className="px-6" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView 
+        className="px-6" 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{ paddingBottom: 100 }}
+        onScroll={handleScroll}
+        scrollEventThrottle={16} // Fires smoothly for the scroll listener
+      >
         
         <Text className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${isDark ? 'text-indigo-400' : 'text-blue-600'}`}>Academic Analytics</Text>
         <Text className={`text-4xl font-black mb-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>Your Stats</Text>
@@ -232,7 +308,7 @@ export default function StatsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Chart View (Logic remains same) */}
+        {/* --- ANIMATED CHART VIEWS --- */}
         {viewMode === 'weekly' ? (
           <View className={`rounded-[40px] p-8 shadow-sm mb-6 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
             <Text className={`text-2xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>Learning Journey</Text>
@@ -247,9 +323,14 @@ export default function StatsScreen() {
 
               {stats.weeklyProgress.map((day) => (
                 <View key={day.label} className="items-center z-10 flex-1">
-                  <View 
+                  <Animated.View 
                     className={`w-8 rounded-t-xl ${day.isToday ? (isDark ? 'bg-indigo-400' : 'bg-[#283593]') : (isDark ? 'bg-gray-700' : 'bg-[#e8eaf6]')}`}
-                    style={{ height: `${Math.max(day.accuracy, 15)}%` }}
+                    style={{ 
+                      height: graphAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['0%', `${Math.max(day.accuracy, 15)}%`]
+                      }) 
+                    }}
                   />
                   <Text className={`text-[9px] mt-4 font-bold tracking-wider ${day.isToday ? (isDark ? 'text-indigo-300' : 'text-gray-900') : 'text-gray-400'}`}>
                     {day.label}
@@ -274,15 +355,25 @@ export default function StatsScreen() {
             </View>
 
             <View className="flex-row justify-around items-end h-40">
-              <View className="items-center">
-                <Text className={`font-bold mb-2 text-lg ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{Math.round(stats.previous.accuracy)}%</Text>
-                <View className={`${isDark ? 'bg-indigo-900/50' : 'bg-[#9fa8da]'} w-20 rounded-t-[32px] opacity-80`} style={{ height: `${Math.max(stats.previous.accuracy, 10)}%` }} />
-                <Text className="text-gray-400 text-[10px] mt-3 font-bold uppercase">{previousMonthName}</Text>
+              <View className="items-center w-24">
+                <AnimatedNumber trigger={true} value={stats.previous.accuracy} format="percent" textClass={`font-bold mb-2 text-lg ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                <Animated.View 
+                  className={`${isDark ? 'bg-indigo-900/50' : 'bg-[#9fa8da]'} w-20 rounded-t-[32px] opacity-80`} 
+                  style={{ 
+                    height: graphAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', `${Math.max(stats.previous.accuracy, 10)}%`] }) 
+                  }} 
+                />
+                <Text className="text-gray-400 text-[10px] mt-3 font-bold uppercase text-center">{previousMonthName}</Text>
               </View>
-              <View className="items-center">
-                <Text className={`${isDark ? 'text-indigo-300' : 'text-[#283593]'} font-black text-3xl mb-2`}>{Math.round(stats.current.accuracy)}%</Text>
-                <View className={`${isDark ? 'bg-indigo-500' : 'bg-[#283593]'} w-20 rounded-t-[32px]`} style={{ height: `${Math.max(stats.current.accuracy, 10)}%` }} />
-                <Text className={`${isDark ? 'text-indigo-300' : 'text-[#283593]'} text-[10px] mt-3 font-bold uppercase`}>{currentMonthName}</Text>
+              <View className="items-center w-24">
+                <AnimatedNumber trigger={true} value={stats.current.accuracy} format="percent" textClass={`${isDark ? 'text-indigo-300' : 'text-[#283593]'} font-black text-3xl mb-2`} />
+                <Animated.View 
+                  className={`${isDark ? 'bg-indigo-500' : 'bg-[#283593]'} w-20 rounded-t-[32px]`} 
+                  style={{ 
+                    height: graphAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', `${Math.max(stats.current.accuracy, 10)}%`] }) 
+                  }} 
+                />
+                <Text className={`${isDark ? 'text-indigo-300' : 'text-[#283593]'} text-[10px] mt-3 font-bold uppercase text-center`}>{currentMonthName}</Text>
               </View>
             </View>
           </View>
@@ -310,11 +401,35 @@ export default function StatsScreen() {
           </View>
         </View>
 
-        {/* Metric Boxes and Subject Performance remain same... */}
-        <View className={`rounded-[40px] p-6 flex-row flex-wrap mb-6 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
-          <MetricBox isDark={isDark} label="AVG Accuracy" value={`${Math.round(stats.current.accuracy)}%`} trend={`${stats.current.accuracy >= stats.previous.accuracy ? '+' : ''}${(stats.current.accuracy - stats.previous.accuracy).toFixed(1)}%`} />
-          <MetricBox isDark={isDark} label="Quizzes Taken" value={stats.current.count} trend={`${stats.current.count >= stats.previous.count ? '+' : ''}${Math.round((stats.current.count - stats.previous.count))}`} />
-          <MetricBox isDark={isDark} label="Total Hours" value={`${stats.current.hours}h`} trend={`${stats.current.hours >= stats.previous.hours ? '+' : ''}${(stats.current.hours - stats.previous.hours).toFixed(1)}h`} />
+        {/* --- SCROLL-TRIGGERED METRIC BOXES --- */}
+        <View 
+          onLayout={(e) => setMetricsY(e.nativeEvent.layout.y)}
+          className={`rounded-[40px] p-6 flex-row flex-wrap mb-6 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}
+        >
+          <MetricBox 
+            trigger={triggerMetrics}
+            isDark={isDark} 
+            label="AVG Accuracy" 
+            format="percent"
+            value={stats.current.accuracy} 
+            trend={`${stats.current.accuracy >= stats.previous.accuracy ? '+' : ''}${(stats.current.accuracy - stats.previous.accuracy).toFixed(1)}%`} 
+          />
+          <MetricBox 
+            trigger={triggerMetrics}
+            isDark={isDark} 
+            label="Quizzes Taken" 
+            format="number"
+            value={stats.current.count} 
+            trend={`${stats.current.count >= stats.previous.count ? '+' : ''}${Math.round((stats.current.count - stats.previous.count))}`} 
+          />
+          <MetricBox 
+            trigger={triggerMetrics}
+            isDark={isDark} 
+            label="Total Hours" 
+            format="hours"
+            value={stats.current.hours} 
+            trend={`${stats.current.hours >= stats.previous.hours ? '+' : ''}${(stats.current.hours - stats.previous.hours).toFixed(1)}h`} 
+          />
         </View>
 
         <Text className={`text-lg font-black mb-4 ${isDark ? 'text-white' : 'text-gray-800'}`}>Subject Performance</Text>
@@ -359,40 +474,66 @@ export default function StatsScreen() {
           })
         )}
 
+        {/* --- SCROLL-TRIGGERED STUDY HABITS --- */}
         <Text className={`text-lg font-black mt-8 mb-4 ${isDark ? 'text-white' : 'text-gray-800'}`}>Study Habits</Text>
-        <View className={`rounded-[40px] p-6 mb-20 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+        
+        <View 
+          onLayout={(e) => setHabitsY(e.nativeEvent.layout.y)}
+          className={`rounded-[40px] p-6 mb-20 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}
+        >
             <Text className={`${isDark ? 'text-indigo-300' : 'text-blue-900'} font-bold text-xs uppercase tracking-widest mb-2`}>Weekly Quiz Intensity</Text>
             <View className="flex-row items-baseline mb-4">
                 <Text className={`text-2xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>High Volume</Text>
                 <Text className="text-gray-400 text-[10px] ml-2">
-                  {currentMonthName.slice(0, 3)}: {stats.current.count} / {previousMonthName.slice(0, 3)}: {stats.previous.count}
+                  {currentMonthName.slice(0, 3)}: <AnimatedNumber trigger={triggerHabits} value={stats.current.count} format="number" textClass="font-bold" /> 
+                  {' '}/ {previousMonthName.slice(0, 3)}: {stats.previous.count}
                 </Text>
             </View>
+            
             <View className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                <View className={`h-full ${isDark ? 'bg-indigo-500' : 'bg-blue-800'} w-[80%]`} />
+                <Animated.View 
+                  className={`h-full ${isDark ? 'bg-indigo-500' : 'bg-blue-800'}`} 
+                  style={{ 
+                    width: habitsAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '80%'] }) 
+                  }} 
+                />
             </View>
 
             <View className="h-8" />
 
             <Text className={`${isDark ? 'text-orange-300' : 'text-orange-900'} font-bold text-xs uppercase tracking-widest mb-2`}>Active Study Minutes</Text>
             <View className="flex-row items-baseline mb-4">
-                <Text className={`text-2xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats.current.minutes} min</Text>
+                <AnimatedNumber trigger={triggerHabits} value={stats.current.minutes} format="number" textClass={`text-2xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`} />
+                <Text className={`text-2xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}> min</Text>
                 <Text className="text-gray-400 text-[10px] ml-2">vs {previousMonthName.slice(0, 3)}</Text>
             </View>
+            
             <View className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                <View className="h-full bg-orange-600 w-[65%]" />
+                <Animated.View 
+                  className="h-full bg-orange-600" 
+                  style={{ 
+                    width: habitsAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '65%'] }) 
+                  }} 
+                />
             </View>
         </View>
+
       </ScrollView>
     </View>
   );
 }
 
-const MetricBox = ({ label, value, trend, isDark }) => (
+// Updated MetricBox to use AnimatedNumber internally
+const MetricBox = ({ label, value, format, trend, isDark, trigger }) => (
   <View className={`w-[100%] py-4 border-b flex-row justify-between items-center ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
     <View>
         <Text className="text-gray-400 text-[10px] font-bold uppercase">{label}</Text>
-        <Text className={`text-2xl font-black mt-1 ${isDark ? 'text-white' : 'text-gray-800'}`}>{value}</Text>
+        <AnimatedNumber 
+          trigger={trigger} 
+          value={value} 
+          format={format} 
+          textClass={`text-2xl font-black mt-1 ${isDark ? 'text-white' : 'text-gray-800'}`} 
+        />
     </View>
     <View className="items-end">
         <Text className="text-orange-600 font-bold text-xs">{trend}</Text>

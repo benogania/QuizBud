@@ -13,7 +13,7 @@ export const useQuizStore = create(
       soundEffects: true,
       hapticsEnabled: true,
       // Add these two lines to your state:
-      aiTone: 'Standard',
+      aiTone: "Standard",
       setAiTone: (tone) => set({ aiTone: tone }),
 
       spellingData: [],
@@ -150,7 +150,7 @@ export const useQuizStore = create(
             const currentId = item.quiz ? item.quiz.id : item.id;
             return currentId !== quizId;
           }),
-        })),   
+        })),
 
       //The Modified update quiz
       updateQuiz: (id, updatedQuizData) =>
@@ -167,6 +167,51 @@ export const useQuizStore = create(
           }),
         })),
 
+      // 1. Add this to merge backed-up quizzes into your app
+      importQuizzes: (importedQuizzes) =>
+        set((state) => {
+          // Merges imported quizzes with existing ones, preventing duplicates by ID
+          const existingIds = state.quizzes.map((q) => q.id);
+          const newQuizzes = importedQuizzes.filter(
+            (q) => !existingIds.includes(q.id),
+          );
+          return { quizzes: [...state.quizzes, ...newQuizzes] };
+        }),
+
+      // 2. Make sure clearHistory looks exactly like this to wipe all activity
+      // Wipes only the stats/history, keeps the created quizzes
+      clearHistory: () =>
+        set({
+          quizHistory: [], // 🚨 FIXED: Changed from 'history' to 'quizHistory'
+          aiStatsInsight: null, // Reset the AI text
+          lastStatsFetch: null, // Reset the fetch timer
+          stats: {
+            totalScore: 0,
+            quizzesTaken: 0,
+            correctAnswers: 0,
+            wrongAnswers: 0,
+          },
+        }),
+
+      // Wipes EVERYTHING (Quizzes, Stats, AI Data)
+      // Wipes EVERYTHING (Quizzes, Folders, Stats, AI Data)
+      factoryReset: () =>
+        set({
+          quizzes: [],
+          collections: [], // 🚨 ADD THIS LINE (or 'collections: []' depending on what you named it)
+          quizHistory: [],
+          spellingData: [],
+          grammarPracticeData: [],
+          speakingScenarios: [],
+          aiStatsInsight: null,
+          lastStatsFetch: null,
+          stats: {
+            totalScore: 0,
+            quizzesTaken: 0,
+            correctAnswers: 0,
+            wrongAnswers: 0,
+          },
+        }),
 
 
     }),

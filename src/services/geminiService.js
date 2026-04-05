@@ -110,7 +110,7 @@ export const askAIAssistant = (chatHistory, newMessage, fileData = null) => {
 export const generateDailyChallenge = async () => {
   const prompt = `
     ACT AS A TRIVIA MASTER. 
-    GENERATE A 5-QUESTION GENERAL KNOWLEDGE QUIZ.
+    GENERATE A 10-QUESTION GENERAL KNOWLEDGE QUIZ.
     
     YOU MUST RETURN ONLY A JSON OBJECT WITH THIS EXACT STRUCTURE:
     {

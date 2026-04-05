@@ -13,6 +13,13 @@ export const useQuizStore = create(
       soundEffects: true,
       hapticsEnabled: true,
       // Add these two lines to your state:
+
+      // --- ADD THESE FOR NOTIFICATIONS ---
+      remindersEnabled: false,
+      setRemindersEnabled: (enabled) => set({ remindersEnabled: enabled }),
+      reminderTime: { hour: 20, minute: 0 }, // Default is 8:00 PM
+      setReminderTime: (time) => set({ reminderTime: time }),
+
       aiTone: "Standard",
       setAiTone: (tone) => set({ aiTone: tone }),
 
@@ -212,8 +219,6 @@ export const useQuizStore = create(
             wrongAnswers: 0,
           },
         }),
-
-
     }),
     {
       name: "quizbud-storage",

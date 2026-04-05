@@ -1,15 +1,24 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { useQuizStore } from '../store/useQuizStore'; // Import the store
-import { ArrowLeftIcon } from 'react-native-heroicons/outline';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Modal } from 'react-native';
+import { useQuizStore } from '../store/useQuizStore'; 
+import { ArrowLeftIcon, ExclamationTriangleIcon } from 'react-native-heroicons/outline';
 import { CheckCircleIcon, XCircleIcon } from 'react-native-heroicons/solid';
 
 export default function ResultsScreen({ route, navigation }) {
-  // Pull theme from the store
-  const { theme } = useQuizStore();
+  // Pull theme and quizzes from the store
+  const { theme, quizzes } = useQuizStore();
   const isDark = theme === 'dark';
 
-  const { score, totalPoints, history, quiz } = route.params;
+  // 1. Destructure route params (added quizId as a fallback)
+  const { score, totalPoints, history, quiz, quizId } = route.params;
+
+  // 2. BULLETPROOF QUIZ LOOKUP: 
+  // If the full 'quiz' object didn't pass through navigation, find it in the store!
+  const targetQuizId = quiz?.id || quizId;
+  const quizToRetake = quiz || quizzes.find(q => q.id === targetQuizId);
+
+  // Modal State
+  const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
 
   const percentage = Math.round((score / totalPoints) * 100);
   
@@ -20,6 +29,14 @@ export default function ResultsScreen({ route, navigation }) {
   else if (percentage >= 60) grade = 'D';
 
   const correctCount = history.filter(h => h.isCorrect).length;
+
+  const handleRetake = () => {
+    if (quizToRetake) {
+      navigation.navigate('QuizPlayer', { quiz: quizToRetake });
+    } else {
+      setIsErrorModalVisible(true);
+    }
+  };
 
   return (
     <View className={`flex-1 pt-12 ${isDark ? 'bg-[#0f172a]' : 'bg-gray-50'}`}>
@@ -123,20 +140,39 @@ export default function ResultsScreen({ route, navigation }) {
 
         <TouchableOpacity 
           className={`py-4 rounded-full shadow-sm ${isDark ? 'bg-gray-800' : 'bg-indigo-300'}`}
-          onPress={() => {
-            if (quiz) {
-              navigation.navigate('QuizPlayer', { quiz: quiz });
-            } else {
-              Alert.alert(
-                "Cannot Retake", 
-                "This quiz has been deleted from your library or the data is no longer available."
-              );
-            }
-          }}
+          onPress={handleRetake}
         >
           <Text className={`text-center font-bold text-base ${isDark ? 'text-white' : 'text-indigo-900'}`}>Retake Quiz</Text>
         </TouchableOpacity>
       </View>
+
+      {/* MODERN UI ERROR MODAL */}
+      <Modal animationType="fade" transparent={true} visible={isErrorModalVisible} onRequestClose={() => setIsErrorModalVisible(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }}>
+          <View className={`w-10/12 rounded-[32px] p-6 shadow-2xl items-center ${isDark ? "bg-gray-900" : "bg-white"}`}>
+            
+            <View className={`w-16 h-16 rounded-full self-center items-center justify-center mb-4 ${isDark ? 'bg-red-900/40' : 'bg-red-100'}`}>
+              <ExclamationTriangleIcon color={isDark ? "#f87171" : "#ef4444"} size={32} />
+            </View>
+            
+            <Text className={`text-xl font-extrabold mb-2 text-center ${isDark ? "text-white" : "text-gray-900"}`}>
+              Quiz Unavailable
+            </Text>
+            <Text className={`text-sm text-center mb-8 px-2 leading-5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+              We couldn't find the data for this quiz. It may have been generated from a temporary session or deleted from your library.
+            </Text>
+            
+            <TouchableOpacity 
+              className="bg-indigo-600 w-full py-4 rounded-full shadow-sm" 
+              onPress={() => setIsErrorModalVisible(false)}
+            >
+              <Text className="text-white font-bold text-center text-base">Got it</Text>
+            </TouchableOpacity>
+
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }

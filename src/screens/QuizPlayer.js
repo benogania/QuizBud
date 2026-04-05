@@ -202,7 +202,7 @@ export default function QuizPlayer({ route, navigation }) {
               timeValue: timeValue,
               shuffleQuestions: shuffleQuestions,
               immediateFeedback: immediateFeedback,
-              autoSpeak: autoSpeak // <-- NEW: Pass parameter to ActiveQuiz
+              autoSpeak: autoSpeak 
             });
           }}
         >

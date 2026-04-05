@@ -5,7 +5,8 @@ const API_KEYS = [
   'AIzaSyBURb6WzynNjCtyiXon9uE1XfJu3u9Lr4w', // Account 1
   'AIzaSyAGjsjGvPln90hcBbvA6KVMf6CDAQ9RuN4', // Account 2
   'AIzaSyCjda2M3VrsjRdxS9FB2caD0KAwiv2lWUo', // Account 3 
-  'AIzaSyB3PMscZwSzlyU6tTp6WrqUM9uOxYcqA2E'  // gwen's key for testing
+  'AIzaSyB3PMscZwSzlyU6tTp6WrqUM9uOxYcqA2E',  // gwen's key for testing
+  'AIzaSyAbF9kfOvLYWuNhei5FRprY6VpWhKSquYA'
 ];
 
 const callGeminiWithFallback = async (prompt, isJson = true, fileData = null) => {

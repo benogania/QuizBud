@@ -9,11 +9,12 @@
     "newArchEnabled": true,
     "splash": {
       "backgroundColor": "#0f172a",
-      "image": "./assets/splash-icon.png", 
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.QuizBud"
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
@@ -28,15 +29,18 @@
         "backgroundColor": "#0f172a",
         "barStyle": "light-content"
       },
-      "permissions": ["VIBRATE"]
+      "permissions": [
+        "VIBRATE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {
-        "projectId": "6de5e4a4-5e83-4b73-a82f-833efa968e7d"
+        "projectId": "da75b28e-6567-494f-a786-28c1fe8a1ba6"
       }
-    }
+    },
+    "owner": "ben190"
   }
 }

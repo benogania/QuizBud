@@ -56,13 +56,11 @@ export default function SettingsScreen() {
   
   const isDark = theme === 'dark';
 
-  // --- MODAL STATES ---
   const [modalConfig, setModalConfig] = useState({
     visible: false, type: 'info', title: '', message: '', confirmText: 'OK', onConfirm: null, showCancel: false
   });
   const [isTimePickerVisible, setIsTimePickerVisible] = useState(false);
   
-  // Temp states for the time picker UI
   const [tempHour, setTempHour] = useState(8);
   const [tempMinute, setTempMinute] = useState(0);
   const [tempPeriod, setTempPeriod] = useState('PM');
@@ -70,7 +68,6 @@ export default function SettingsScreen() {
   const closeModal = () => setModalConfig(prev => ({ ...prev, visible: false }));
   const showModal = (config) => setModalConfig({ ...config, visible: true });
 
-  // Format the time for the settings menu display
   const getFormattedTime = () => {
     const period = reminderTime.hour >= 12 ? 'PM' : 'AM';
     const displayHour = reminderTime.hour % 12 || 12;
@@ -94,19 +91,18 @@ export default function SettingsScreen() {
         return;
       }
 
-      // 1. CREATE THE ANDROID CHANNEL
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('default', {
           name: 'default',
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#FF231F7C',
+          lightColor: '#4f46e5',
         });
       }
 
       await Notifications.cancelAllScheduledNotificationsAsync();
       
-      // 2. SCHEDULE THE NOTIFICATION (WITH THE MISSING channelId FIX!)
+      // 🚨 THE FINAL FIX: channelId MUST be in the trigger object for Android!
       await Notifications.scheduleNotificationAsync({
         content: { 
           title: "🧠 Time to study!", 
@@ -117,7 +113,7 @@ export default function SettingsScreen() {
           hour: Number(hour24), 
           minute: Number(minute), 
           repeats: true,
-          channelId: 'default' // 🚨 FIX: This is the missing link Expo was complaining about!
+          channelId: 'default' // <-- This is exactly what the red error screen was asking for!
         },
       });
 
@@ -135,7 +131,7 @@ export default function SettingsScreen() {
       });
 
     } catch (error) {
-      console.warn(error);
+      console.warn("ALARM ERROR: ", error);
       setRemindersEnabled(false); 
       
       showModal({
@@ -150,14 +146,12 @@ export default function SettingsScreen() {
   const handleToggleReminders = (value) => {
     triggerHaptic(hapticsEnabled, 'Light');
     if (value) {
-      // If toggling ON, prepopulate the picker and show it
       let h12 = reminderTime.hour % 12 || 12;
       setTempHour(h12);
       setTempMinute(reminderTime.minute);
       setTempPeriod(reminderTime.hour >= 12 ? 'PM' : 'AM');
       setIsTimePickerVisible(true);
     } else {
-      // If toggling OFF, cancel all
       Notifications.cancelAllScheduledNotificationsAsync();
       setRemindersEnabled(false);
     }
@@ -167,7 +161,6 @@ export default function SettingsScreen() {
     triggerHaptic(hapticsEnabled, 'Medium');
     setIsTimePickerVisible(false);
     
-    // Convert 12h to 24h format for the system
     let finalHour24 = tempHour;
     if (tempPeriod === 'PM' && tempHour !== 12) finalHour24 += 12;
     if (tempPeriod === 'AM' && tempHour === 12) finalHour24 = 0;
@@ -176,7 +169,6 @@ export default function SettingsScreen() {
     scheduleDailyReminder(finalHour24, tempMinute);
   };
 
-  // Helper for custom time picker
   const adjustTime = (type, direction) => {
     triggerHaptic(hapticsEnabled, 'Light');
     if (type === 'hour') {
@@ -185,7 +177,7 @@ export default function SettingsScreen() {
       if (nextHour < 1) nextHour = 12;
       setTempHour(nextHour);
     } else if (type === 'minute') {
-      let nextMin = tempMinute + (direction * 5); // jump by 5 mins
+      let nextMin = tempMinute + (direction * 5); 
       if (nextMin > 55) nextMin = 0;
       if (nextMin < 0) nextMin = 55;
       setTempMinute(nextMin);
@@ -201,8 +193,66 @@ export default function SettingsScreen() {
     if (!hapticsEnabled) triggerHaptic(true, 'Heavy'); 
   };
 
-  const handleExportData = async () => { /* ... existing export logic ... */ };
-  const handleImportData = async () => { /* ... existing import logic ... */ };
+  // --- FULLY RESTORED BACKUP & IMPORT LOGIC ---
+  const handleExportData = async () => {
+    triggerHaptic(hapticsEnabled, 'Medium');
+    try {
+      const fileUri = `${FileSystem.documentDirectory}QuizBud_Backup.qb`;
+      const exportData = { version: "1.2", quizzes: quizzes };
+      
+      // Write the file
+      await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(exportData, null, 2));
+      
+      // Share the file
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, { 
+          mimeType: 'application/json', // Helps Android know how to share it
+          dialogTitle: 'Backup QuizBud Data' 
+        });
+      } else {
+        showModal({ type: 'danger', title: 'Error', message: 'Sharing is not available on this device.', confirmText: 'OK' });
+      }
+    } catch (error) {
+      showModal({ type: 'danger', title: 'Export Failed', message: 'There was an error saving your backup.', confirmText: 'OK' });
+    }
+  };
+
+  const handleImportData = async () => {
+    triggerHaptic(hapticsEnabled, 'Medium');
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/json', '*/*'], 
+        copyToCacheDirectory: true
+      });
+
+      // Handle the new Expo DocumentPicker "assets" array format
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+      const file = result.assets[0];
+      const fileContent = await FileSystem.readAsStringAsync(file.uri);
+      const parsedData = JSON.parse(fileContent);
+
+      // Validate and import
+      if (parsedData.quizzes && Array.isArray(parsedData.quizzes)) {
+        importQuizzes(parsedData.quizzes);
+        showModal({
+          type: 'success',
+          title: 'Restore Successful',
+          message: `Successfully restored ${parsedData.quizzes.length} quizzes to your library!`,
+          confirmText: 'Awesome'
+        });
+      } else {
+        throw new Error("Invalid Format");
+      }
+    } catch (error) {
+      showModal({
+        type: 'danger',
+        title: 'Restore Failed',
+        message: 'The file you selected is not a valid QuizBud backup file. Ensure it is a .qb or .json file.',
+        confirmText: 'OK'
+      });
+    }
+  };
   
   const handleClearHistory = () => {
     triggerHaptic(hapticsEnabled, 'Medium');
@@ -315,10 +365,8 @@ export default function SettingsScreen() {
             <Text className={`text-2xl font-extrabold mb-2 text-center ${isDark ? "text-white" : "text-gray-900"}`}>Set Reminder Time</Text>
             <Text className={`text-sm text-center mb-8 px-2 leading-5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>When would you like QuizBud to remind you to study?</Text>
             
-            {/* TIME WHEELS */}
             <View className="flex-row items-center justify-center space-x-6 mb-10 w-full px-4">
               
-              {/* Hour Wheel */}
               <View className="items-center w-20">
                 <TouchableOpacity onPress={() => adjustTime('hour', 1)} className={`p-3 rounded-xl mb-2 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
                   <ChevronUpIcon color={isDark ? "#a5b4fc" : "#4f46e5"} size={24} />
@@ -331,7 +379,6 @@ export default function SettingsScreen() {
 
               <Text className={`text-4xl font-black mb-2 ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>:</Text>
 
-              {/* Minute Wheel */}
               <View className="items-center w-20">
                 <TouchableOpacity onPress={() => adjustTime('minute', 1)} className={`p-3 rounded-xl mb-2 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
                   <ChevronUpIcon color={isDark ? "#a5b4fc" : "#4f46e5"} size={24} />
@@ -342,7 +389,6 @@ export default function SettingsScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* AM / PM Toggle */}
               <View className="items-center w-20 justify-center h-full ml-4">
                 <TouchableOpacity 
                   onPress={() => { triggerHaptic(hapticsEnabled, 'Light'); setTempPeriod(tempPeriod === 'AM' ? 'PM' : 'AM'); }}

@@ -337,7 +337,7 @@ export default function LibraryScreen() {
               return (
                 <TouchableOpacity
                   key={folder.id}
-                  className={`flex-row items-center p-4 rounded-3xl mb-3 shadow-sm ${isDark ? "bg-gray-800" : "bg-white"}`}
+                  className={`flex-row items-center p-4 rounded-3xl mb-3 shadow-xl ${isDark ? "bg-gray-800" : "bg-white"}`}
                   onPress={() => navigation.navigate("CollectionScreen", { id: folder.id, name: folder.name })}
                   onLongPress={() => handleLongPressFolder(folder)}
                   delayLongPress={400}

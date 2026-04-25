@@ -23,7 +23,7 @@ export default function QuizPlayer({ route, navigation }) {
   const [timeValue, setTimeValue] = useState(15); 
 
   // State for Gameplay Rules
-  const [shuffleQuestions, setShuffleQuestions] = useState(true); 
+  const [shuffleQuestions, setShuffleQuestions] = useState(false); 
   const [immediateFeedback, setImmediateFeedback] = useState(true); 
   const [autoSpeak, setAutoSpeak] = useState(false); // <-- NEW: Auto-Speak State
 

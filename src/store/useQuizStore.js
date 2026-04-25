@@ -12,7 +12,13 @@ export const useQuizStore = create(
       lastDailyFetch: null,
       soundEffects: true,
       hapticsEnabled: true,
-      // Add these two lines to your state:
+
+      // --- ADD THESE FOR API KEY MANAGEMENT ---
+      geminiApiKeys: [],
+      addApiKey: (key) => set((state) => ({ geminiApiKeys: [...state.geminiApiKeys, key] })),
+      removeApiKey: (index) => set((state) => ({
+        geminiApiKeys: state.geminiApiKeys.filter((_, i) => i !== index)
+      })),
 
       // --- ADD THESE FOR NOTIFICATIONS ---
       remindersEnabled: false,
@@ -26,21 +32,18 @@ export const useQuizStore = create(
       spellingData: [],
       setSpellingData: (data) => set({ spellingData: data }),
 
-      // Add these to your Zustand store state
       grammarPracticeData: [],
       setGrammarPracticeData: (data) => set({ grammarPracticeData: data }),
 
-      // Add these to your Zustand store state
       speakingScenarios: [],
       setSpeakingScenarios: (data) => set({ speakingScenarios: data }),
-
-      clearHistory: () => set({ quizHistory: [] }),
 
       setDailyChallenge: (quiz) =>
         set({
           dailyChallenge: quiz,
           lastDailyFetch: new Date().toDateString(),
         }),
+        
       setAiStatsInsight: (insight) =>
         set({
           aiStatsInsight: insight,
@@ -58,7 +61,6 @@ export const useQuizStore = create(
       // Bulletproof theme setter
       setTheme: (newTheme) => set({ theme: newTheme }),
 
-      // Add this right next to your existing state variables (like quizzes: [])
       collections: [], // Array to hold: { id: string, name: string, quizIds: array }
 
       // Add these new functions to create, edit, and delete collections
@@ -81,7 +83,6 @@ export const useQuizStore = create(
           ),
         })),
 
-      // Add this inside your Zustand store:
       updateCollectionIcon: (id, iconName) =>
         set((state) => ({
           collections: state.collections.map((c) =>
@@ -92,10 +93,7 @@ export const useQuizStore = create(
       deleteCollection: (id) =>
         set((state) => ({
           collections: state.collections.filter((c) => c.id !== id),
-          // Optional: You might want to remove this collection's ID from quizzes here too later
         })),
-
-      // Add these inside your Zustand store:
 
       addQuizzesToCollection: (collectionId, quizIdsArray) =>
         set((state) => ({
@@ -165,7 +163,6 @@ export const useQuizStore = create(
           quizzes: state.quizzes.map((item) => {
             const qId = item.quiz ? item.quiz.id : item.id;
             if (qId === id) {
-              // Safely merges the data whether it is nested inside "quiz" or flat
               return item.quiz
                 ? { ...item, quiz: { ...item.quiz, ...updatedQuizData } }
                 : { ...item, ...updatedQuizData };
@@ -174,10 +171,8 @@ export const useQuizStore = create(
           }),
         })),
 
-      // 1. Add this to merge backed-up quizzes into your app
       importQuizzes: (importedQuizzes) =>
         set((state) => {
-          // Merges imported quizzes with existing ones, preventing duplicates by ID
           const existingIds = state.quizzes.map((q) => q.id);
           const newQuizzes = importedQuizzes.filter(
             (q) => !existingIds.includes(q.id),
@@ -185,13 +180,12 @@ export const useQuizStore = create(
           return { quizzes: [...state.quizzes, ...newQuizzes] };
         }),
 
-      // 2. Make sure clearHistory looks exactly like this to wipe all activity
       // Wipes only the stats/history, keeps the created quizzes
       clearHistory: () =>
         set({
-          quizHistory: [], // 🚨 FIXED: Changed from 'history' to 'quizHistory'
-          aiStatsInsight: null, // Reset the AI text
-          lastStatsFetch: null, // Reset the fetch timer
+          quizHistory: [], 
+          aiStatsInsight: null, 
+          lastStatsFetch: null, 
           stats: {
             totalScore: 0,
             quizzesTaken: 0,
@@ -200,18 +194,19 @@ export const useQuizStore = create(
           },
         }),
 
-      // Wipes EVERYTHING (Quizzes, Stats, AI Data)
-      // Wipes EVERYTHING (Quizzes, Folders, Stats, AI Data)
+      // Wipes EVERYTHING (Quizzes, Folders, Stats, AI Data, API Keys)
       factoryReset: () =>
         set({
           quizzes: [],
-          collections: [], // 🚨 ADD THIS LINE (or 'collections: []' depending on what you named it)
+          collections: [], 
           quizHistory: [],
+          geminiApiKeys: [], // Wipes the API keys too!
           spellingData: [],
           grammarPracticeData: [],
           speakingScenarios: [],
           aiStatsInsight: null,
           lastStatsFetch: null,
+          remindersEnabled: false, // Turns off the toggle on reset
           stats: {
             totalScore: 0,
             quizzesTaken: 0,

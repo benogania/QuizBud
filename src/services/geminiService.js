@@ -1,12 +1,15 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-
-// 1. Define your API keys
-const API_KEYS = [
-  process.env.GEMINI_API_KEY_1,
-];
+import { useQuizStore } from "../store/useQuizStore"; // 🚨 NEW: Import the store directly
 
 const callGeminiWithFallback = async (prompt, isJson = true, fileData = null) => {
-  // The loop automatically adapts to however many keys are in the array!
+  // 🚨 NEW: Pull the keys directly from the user's settings!
+  const API_KEYS = useQuizStore.getState().geminiApiKeys || [];
+
+  if (API_KEYS.length === 0) {
+    throw new Error("No API Keys found! Please go to Settings and add your Gemini API Key.");
+  }
+
+  // The loop automatically adapts to however many keys the user added!
   for (let i = 0; i < API_KEYS.length; i++) {
     const currentKey = API_KEYS[i];
     const genAI = new GoogleGenerativeAI(currentKey);
@@ -44,7 +47,7 @@ const callGeminiWithFallback = async (prompt, isJson = true, fileData = null) =>
 
       // If it's the last key or not a quota error, throw the error
       console.error(`Gemini Error (Key ${i + 1}):`, error);
-      throw new Error("All AI quotas are currently full. Please wait a minute.");
+      throw new Error("All AI quotas are currently full, or your key is invalid. Please wait a minute or add another key.");
     }
   }
 };
@@ -87,7 +90,6 @@ export const generateQuizWithAI = (topic, numQuestions = 5, fileData = null) => 
 export const askAIAssistant = (chatHistory, newMessage, fileData = null) => {
   const context = chatHistory.slice(-5).map(m => `${m.role}: ${m.text}`).join('\n');
   
-  // If a file is attached, inject a special instruction!
   const fileInstruction = fileData 
     ? "\n\nCRITICAL INSTRUCTION: The user has uploaded a document. Analyze it to answer their question. THEN, enthusiastically suggest that you can turn this document into a custom practice quiz! Tell them to tap the 'Make Quiz' button at the top of the screen to generate it instantly."
     : "";
@@ -131,9 +133,7 @@ export const generateDailyChallenge = async () => {
     2. correctAnswerIndex must be a number from 0 to 3.
     3. Do not include any text outside of the JSON object.
   `;
-
-  const result = await callGeminiWithFallback(prompt, true);
-  return result;
+  return await callGeminiWithFallback(prompt, true);
 };
 
 export const generateStudyRecommendation = (stats) => {
@@ -177,7 +177,6 @@ export const generateWordArchitectQuiz = async (quizQuestions) => {
   return callGeminiWithFallback(prompt, true);
 };
 
-// --- NEW: SPELLING & VOCABULARY GENERATOR ---
 export const generateSpellingWords = async () => {
   const prompt = `
     ACT AS AN ENGLISH LINGUISTICS PROFESSOR.
@@ -192,12 +191,9 @@ export const generateSpellingWords = async () => {
       }
     ]
   `;
-  // Leverage the fallback wrapper for automatic parsing and key rotation
   return callGeminiWithFallback(prompt, true);
 };
 
-
-// --- NEW: GRAMMAR & WRITING COACH ---
 export const improveGrammar = async (userText) => {
   const prompt = `
     ACT AS AN EXPERT ENGLISH GRAMMAR COACH AND NATIVE SPEAKER.
@@ -213,12 +209,9 @@ export const improveGrammar = async (userText) => {
       ]
     }
   `;
-  // Leverage your fallback wrapper!
   return callGeminiWithFallback(prompt, true);
 };
 
-// --- NEW: GRAMMAR FILL-IN-THE-BLANKS GENERATOR ---
-// --- UPDATED: OVERALL GRAMMAR FILL-IN-THE-BLANKS GENERATOR ---
 export const generateGrammarPractice = async () => {
   const prompt = `
     ACT AS AN ENGLISH LINGUISTICS PROFESSOR.
@@ -229,7 +222,6 @@ export const generateGrammarPractice = async () => {
     - Prepositions and phrasal verbs
     - Conditional clauses (If I had known...)
     - Relative pronouns and modifiers
-    DO NOT just focus on transition words. Make it a well-rounded grammar test.
 
     YOU MUST RETURN ONLY A RAW JSON ARRAY OF OBJECTS WITH THIS EXACT STRUCTURE:
     [
@@ -241,18 +233,13 @@ export const generateGrammarPractice = async () => {
       }
     ]
   `;
-  
-  // Leverage your fallback wrapper!
   return callGeminiWithFallback(prompt, true);
 };
 
-
-// --- NEW: SPEAKING & CONVERSATION COACH ---
 export const generateSpeakingScenarios = async () => {
   const prompt = `
     ACT AS AN ENGLISH CONVERSATION COACH.
     Generate 5 everyday, real-life scenarios for a student to practice spoken English. 
-    Make them realistic (e.g., ordering coffee, apologizing, asking for directions, making small talk).
 
     YOU MUST RETURN ONLY A RAW JSON ARRAY OF OBJECTS WITH THIS EXACT STRUCTURE:
     [

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, Platform, Modal } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Switch, Platform, Modal, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuizStore } from '../store/useQuizStore';
@@ -25,7 +25,9 @@ import {
   ChevronRightIcon,
   ClockIcon,
   ChevronUpIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  KeyIcon,
+  PlusIcon
 } from 'react-native-heroicons/outline';
 import { CheckCircleIcon } from 'react-native-heroicons/solid';
 
@@ -51,7 +53,8 @@ export default function SettingsScreen() {
     factoryReset,
     importQuizzes,
     remindersEnabled, setRemindersEnabled, 
-    reminderTime, setReminderTime          
+    reminderTime, setReminderTime,
+    geminiApiKeys = [], addApiKey, removeApiKey // 🚨 Pulled from store!
   } = useQuizStore(); 
   
   const isDark = theme === 'dark';
@@ -60,6 +63,8 @@ export default function SettingsScreen() {
     visible: false, type: 'info', title: '', message: '', confirmText: 'OK', onConfirm: null, showCancel: false
   });
   const [isTimePickerVisible, setIsTimePickerVisible] = useState(false);
+  const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
+  const [newApiKeyValue, setNewApiKeyValue] = useState('');
   
   const [tempHour, setTempHour] = useState(8);
   const [tempMinute, setTempMinute] = useState(0);
@@ -79,12 +84,10 @@ export default function SettingsScreen() {
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
-      
       if (existingStatus !== 'granted') {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
-
       if (finalStatus !== 'granted') {
         showModal({ type: 'danger', title: 'Permission Denied', message: 'Please allow notifications in your phone settings.', confirmText: 'Got it' });
         setRemindersEnabled(false);
@@ -101,42 +104,35 @@ export default function SettingsScreen() {
       }
 
       await Notifications.cancelAllScheduledNotificationsAsync();
-      
-      // 🚨 THE FINAL FIX: channelId MUST be in the trigger object for Android!
       await Notifications.scheduleNotificationAsync({
         content: { 
           title: "🧠 Time to study!", 
           body: "Keep your streak alive. Review a quiz today to keep your mind sharp!", 
-          sound: true 
+          sound: true,
+          channelId: 'default' 
         },
         trigger: { 
-          hour: Number(hour24), 
-          minute: Number(minute), 
-          repeats: true,
-          channelId: 'default' // <-- This is exactly what the red error screen was asking for!
+          type: 'calendar', 
+          hour: parseInt(hour24, 10) || 0, 
+          minute: parseInt(minute, 10) || 0, 
+          repeats: true
         },
       });
 
       setRemindersEnabled(true);
-      
       const period = hour24 >= 12 ? 'PM' : 'AM';
       const displayHour = hour24 % 12 || 12;
       const displayMin = minute.toString().padStart(2, '0');
 
       showModal({
-        type: 'success',
-        title: 'Reminder Set!',
+        type: 'success', title: 'Reminder Set!',
         message: `You will now receive a daily study reminder at ${displayHour}:${displayMin} ${period}.`,
         confirmText: 'Awesome'
       });
-
     } catch (error) {
-      console.warn("ALARM ERROR: ", error);
       setRemindersEnabled(false); 
-      
       showModal({
-        type: 'danger',
-        title: 'Android Blocked the Alarm',
+        type: 'danger', title: 'Android Blocked the Alarm',
         message: `Error: ${error.message}\n\nTo fix this on Android 14+, go to your phone's Settings -> Apps -> QuizBud -> "Alarms & Reminders" and ALLOW it.`,
         confirmText: 'I understand'
       });
@@ -160,11 +156,9 @@ export default function SettingsScreen() {
   const saveTimePicker = () => {
     triggerHaptic(hapticsEnabled, 'Medium');
     setIsTimePickerVisible(false);
-    
     let finalHour24 = tempHour;
     if (tempPeriod === 'PM' && tempHour !== 12) finalHour24 += 12;
     if (tempPeriod === 'AM' && tempHour === 12) finalHour24 = 0;
-
     setReminderTime({ hour: finalHour24, minute: tempMinute });
     scheduleDailyReminder(finalHour24, tempMinute);
   };
@@ -184,31 +178,25 @@ export default function SettingsScreen() {
     }
   };
 
-  const toggleTheme = () => {
-    if (setTheme) { setTheme(isDark ? 'light' : 'dark'); triggerHaptic(hapticsEnabled); }
+  const handleAddApiKey = () => {
+    if (!newApiKeyValue.trim()) return;
+    addApiKey(newApiKeyValue.trim());
+    setNewApiKeyValue('');
+    setIsApiKeyModalVisible(false);
+    triggerHaptic(hapticsEnabled, 'Light');
   };
 
-  const handleToggleHaptics = () => {
-    toggleHaptics();
-    if (!hapticsEnabled) triggerHaptic(true, 'Heavy'); 
-  };
+  const toggleTheme = () => { if (setTheme) { setTheme(isDark ? 'light' : 'dark'); triggerHaptic(hapticsEnabled); } };
+  const handleToggleHaptics = () => { toggleHaptics(); if (!hapticsEnabled) triggerHaptic(true, 'Heavy'); };
 
-  // --- FULLY RESTORED BACKUP & IMPORT LOGIC ---
   const handleExportData = async () => {
     triggerHaptic(hapticsEnabled, 'Medium');
     try {
       const fileUri = `${FileSystem.documentDirectory}QuizBud_Backup.qb`;
       const exportData = { version: "1.2", quizzes: quizzes };
-      
-      // Write the file
       await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(exportData, null, 2));
-      
-      // Share the file
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri, { 
-          mimeType: 'application/json', // Helps Android know how to share it
-          dialogTitle: 'Backup QuizBud Data' 
-        });
+        await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Backup QuizBud Data' });
       } else {
         showModal({ type: 'danger', title: 'Error', message: 'Sharing is not available on this device.', confirmText: 'OK' });
       }
@@ -220,57 +208,35 @@ export default function SettingsScreen() {
   const handleImportData = async () => {
     triggerHaptic(hapticsEnabled, 'Medium');
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/json', '*/*'], 
-        copyToCacheDirectory: true
-      });
-
-      // Handle the new Expo DocumentPicker "assets" array format
+      const result = await DocumentPicker.getDocumentAsync({ type: ['application/json', '*/*'], copyToCacheDirectory: true });
       if (result.canceled || !result.assets || result.assets.length === 0) return;
-
       const file = result.assets[0];
       const fileContent = await FileSystem.readAsStringAsync(file.uri);
       const parsedData = JSON.parse(fileContent);
-
-      // Validate and import
       if (parsedData.quizzes && Array.isArray(parsedData.quizzes)) {
         importQuizzes(parsedData.quizzes);
-        showModal({
-          type: 'success',
-          title: 'Restore Successful',
-          message: `Successfully restored ${parsedData.quizzes.length} quizzes to your library!`,
-          confirmText: 'Awesome'
-        });
+        showModal({ type: 'success', title: 'Restore Successful', message: `Successfully restored ${parsedData.quizzes.length} quizzes!`, confirmText: 'Awesome' });
       } else {
         throw new Error("Invalid Format");
       }
     } catch (error) {
-      showModal({
-        type: 'danger',
-        title: 'Restore Failed',
-        message: 'The file you selected is not a valid QuizBud backup file. Ensure it is a .qb or .json file.',
-        confirmText: 'OK'
-      });
+      showModal({ type: 'danger', title: 'Restore Failed', message: 'Not a valid QuizBud backup file. Ensure it is a .qb or .json file.', confirmText: 'OK' });
     }
   };
   
   const handleClearHistory = () => {
     triggerHaptic(hapticsEnabled, 'Medium');
     showModal({
-      type: 'danger', title: 'Clear Stats?',
-      message: 'This will reset your accuracy and study time to zero. Your quizzes will remain safe.',
-      showCancel: true, confirmText: 'Clear',
-      onConfirm: () => { if(clearHistory) clearHistory(); showModal({ type: 'success', title: 'Success', message: 'History cleared.', confirmText: 'Done' }); }
+      type: 'danger', title: 'Clear Stats?', message: 'This will reset your accuracy and study time to zero. Your quizzes will remain safe.',
+      showCancel: true, confirmText: 'Clear', onConfirm: () => { if(clearHistory) clearHistory(); showModal({ type: 'success', title: 'Success', message: 'History cleared.', confirmText: 'Done' }); }
     });
   };
 
   const handleFactoryReset = () => {
     triggerHaptic(hapticsEnabled, 'Heavy');
     showModal({
-      type: 'danger', title: 'FACTORY RESET',
-      message: 'Are you absolutely sure? This will permanently delete ALL your quizzes and stats.',
-      showCancel: true, confirmText: 'Wipe Everything',
-      onConfirm: () => { if(factoryReset) factoryReset(); showModal({ type: 'success', title: 'Reset Complete', message: 'App restored to factory settings.', confirmText: 'OK' }); }
+      type: 'danger', title: 'FACTORY RESET', message: 'Are you absolutely sure? This will permanently delete ALL your quizzes and stats.',
+      showCancel: true, confirmText: 'Wipe Everything', onConfirm: () => { if(factoryReset) factoryReset(); showModal({ type: 'success', title: 'Reset Complete', message: 'App restored to factory settings.', confirmText: 'OK' }); }
     });
   };
 
@@ -321,21 +287,48 @@ export default function SettingsScreen() {
         <View className={`px-4 rounded-3xl ${isDark ? 'bg-gray-900' : 'bg-white shadow-sm'}`}>
           <SettingRow icon={SpeakerWaveIcon} label="Sound Effects" description="Play sounds for correct/wrong answers" rightElement={<Switch value={soundEffects} onValueChange={() => { triggerHaptic(hapticsEnabled); toggleSoundEffects(); }} trackColor={{ false: '#d1d5db', true: '#4f46e5' }} thumbColor={'#ffffff'}/>} />
           <SettingRow icon={DevicePhoneMobileIcon} label="Haptic Feedback" description="Vibrate phone on button presses" rightElement={<Switch value={hapticsEnabled} onValueChange={handleToggleHaptics} trackColor={{ false: '#d1d5db', true: '#4f46e5' }} thumbColor={'#ffffff'}/>} />
-          
-          <SettingRow 
-            icon={BellAlertIcon} 
-            label="Daily Study Reminder" 
-            description={remindersEnabled ? `Active - Reminding you daily at ${getFormattedTime()}` : "Get notified to keep your streak alive"} 
-            onPress={remindersEnabled ? () => handleToggleReminders(true) : null}
-            rightElement={
-              <Switch value={remindersEnabled} onValueChange={handleToggleReminders} trackColor={{ false: '#d1d5db', true: '#4f46e5' }} thumbColor={'#ffffff'}/>
-            } 
-          />
+          <SettingRow icon={BellAlertIcon} label="Daily Study Reminder" description={remindersEnabled ? `Active - Reminding you daily at ${getFormattedTime()}` : "Get notified to keep your streak alive"} onPress={remindersEnabled ? () => handleToggleReminders(true) : null} rightElement={<Switch value={remindersEnabled} onValueChange={handleToggleReminders} trackColor={{ false: '#d1d5db', true: '#4f46e5' }} thumbColor={'#ffffff'}/>} />
         </View>
 
         <SectionHeader title="AI Assistant Preferences" />
         <View className={`px-4 rounded-3xl ${isDark ? 'bg-gray-900' : 'bg-white shadow-sm'}`}>
           <SettingRow icon={SparklesIcon} label="AI Response Tone" description="How Gemini explains concepts to you" onPress={cycleAiTone} rightElement={<View className="flex-row items-center"><Text className={`font-bold mr-2 ${isDark ? 'text-indigo-300' : 'text-indigo-600'}`}>{aiTone || 'Standard'}</Text><ChevronRightIcon color={isDark ? "#6b7280" : "#9ca3af"} size={16} /></View>} />
+        </View>
+
+        {/* --- NEW: API CONFIGURATION SECTION --- */}
+        <SectionHeader title="AI API Configuration" />
+        <View className={`px-4 rounded-3xl pb-2 pt-2 ${isDark ? 'bg-gray-900' : 'bg-white shadow-sm'}`}>
+          {geminiApiKeys.length === 0 ? (
+            <View className={`py-4 items-center border-b ${isDark ? 'border-gray-800' : 'border-gray-100'}`}>
+              <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>No API Keys saved.</Text>
+            </View>
+          ) : (
+            geminiApiKeys.map((key, index) => {
+              // Mask the key (e.g., AIzaSy...Wxyz)
+              const maskedKey = key.length > 10 ? `${key.substring(0, 6)}...${key.substring(key.length - 4)}` : 'Invalid Key Length';
+              return (
+                <View key={index} className={`flex-row items-center justify-between py-4 border-b ${isDark ? 'border-gray-800' : 'border-gray-100'}`}>
+                  <View className="flex-row items-center">
+                    <View className={`p-2 rounded-full mr-3 ${isDark ? 'bg-indigo-900/30' : 'bg-indigo-50'}`}>
+                      <KeyIcon color={isDark ? "#818cf8" : "#4f46e5"} size={16} />
+                    </View>
+                    <View>
+                      <Text className={`font-bold text-sm ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>Gemini API Key {index + 1}</Text>
+                      <Text className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{maskedKey}</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity onPress={() => { triggerHaptic(hapticsEnabled, 'Light'); removeApiKey(index); }} className={`p-2 rounded-full ${isDark ? 'bg-red-900/20' : 'bg-red-50'}`}>
+                    <TrashIcon color="#ef4444" size={18} />
+                  </TouchableOpacity>
+                </View>
+              );
+            })
+          )}
+          
+          <TouchableOpacity onPress={() => setIsApiKeyModalVisible(true)} className="flex-row items-center justify-center py-4">
+            <PlusIcon color={isDark ? "#818cf8" : "#4f46e5"} size={20} />
+            <Text className={`font-bold ml-2 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`}>Add API Key</Text>
+          </TouchableOpacity>
         </View>
 
         <SectionHeader title="Data & Storage" />
@@ -352,6 +345,32 @@ export default function SettingsScreen() {
         </View>
 
       </ScrollView>
+
+      {/* --- ADD API KEY MODAL --- */}
+      <Modal animationType="fade" transparent={true} visible={isApiKeyModalVisible} onRequestClose={() => setIsApiKeyModalVisible(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }}>
+          <View className={`w-10/12 rounded-[32px] p-6 shadow-2xl ${isDark ? "bg-gray-900" : "bg-white"}`}>
+            <View className={`w-12 h-12 rounded-full self-center items-center justify-center mb-4 ${isDark ? 'bg-indigo-900/40' : 'bg-indigo-100'}`}>
+              <KeyIcon color={isDark ? "#818cf8" : "#4f46e5"} size={24} />
+            </View>
+            <Text className={`text-xl font-extrabold mb-2 text-center ${isDark ? "text-white" : "text-gray-900"}`}>Add API Key</Text>
+            <Text className={`text-xs text-center mb-6 px-2 leading-5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Paste your Google Gemini API Key here to enable AI features.</Text>
+            
+            <TextInput 
+              value={newApiKeyValue} 
+              onChangeText={setNewApiKeyValue} 
+              placeholder="AIzaSy..." 
+              placeholderTextColor={isDark ? "#6b7280" : "#9ca3af"} 
+              className={`p-4 rounded-2xl border mb-6 font-medium text-base ${isDark ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`} 
+            />
+            
+            <View className="flex-row justify-end items-center">
+              <TouchableOpacity className="px-5 py-3 rounded-full mr-2" onPress={() => setIsApiKeyModalVisible(false)}><Text className={`font-bold ${isDark ? "text-gray-400" : "text-gray-500"}`}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity className="bg-indigo-600 px-6 py-3 rounded-full shadow-sm" onPress={handleAddApiKey}><Text className="text-white font-bold">Add Key</Text></TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* --- CUSTOM TIME PICKER MODAL --- */}
       <Modal animationType="slide" transparent={true} visible={isTimePickerVisible} onRequestClose={() => {setIsTimePickerVisible(false); setRemindersEnabled(false);}}>

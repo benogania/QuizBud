@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView } from 'react-native';
-import { ClockIcon, XMarkIcon, CheckCircleIcon, XCircleIcon, SpeakerWaveIcon } from 'react-native-heroicons/outline';
+import { ClockIcon, XMarkIcon, CheckCircleIcon, XCircleIcon, SpeakerWaveIcon, InformationCircleIcon } from 'react-native-heroicons/outline';
 import { useQuizStore } from '../store/useQuizStore'; 
 import { playSound } from '../utils/soundHelper'; 
 import * as Speech from 'expo-speech';
@@ -23,8 +23,34 @@ export default function ActiveQuizScreen({ route, navigation }) {
   const [answerHistory, setAnswerHistory] = useState([]);
 
   useEffect(() => {
-    const initialQuestions = [...quiz.questions];
+    // --- NEW: SMART SHUFFLING LOGIC ---
+    const initialQuestions = quiz.questions.map(q => {
+      // Only shuffle multiple_choice options (Keep True/False in standard order)
+      if (q.type === 'multiple_choice' && q.options) {
+        // Tie the option text to whether it is the correct answer
+        let mappedOptions = q.options.map((opt, idx) => ({
+          text: opt,
+          isCorrect: idx === q.correctAnswerIndex
+        }));
+        
+        // Shuffle the array of objects
+        mappedOptions.sort(() => Math.random() - 0.5);
+        
+        // Find the newly shuffled index of the correct answer
+        const newCorrectIndex = mappedOptions.findIndex(o => o.isCorrect);
+        
+        return {
+          ...q,
+          options: mappedOptions.map(o => o.text), // Extract the text back into a flat array
+          correctAnswerIndex: newCorrectIndex      // Update the correct index!
+        };
+      }
+      return { ...q };
+    });
+
+    // Shuffle the overall question order if the gameplay rule is enabled
     if (shuffleQuestions) initialQuestions.sort(() => Math.random() - 0.5);
+    
     setQuestions(initialQuestions);
 
     if (timerMode === 'entire_quiz') setTimeLeft(timeValue * 60);
@@ -35,7 +61,6 @@ export default function ActiveQuizScreen({ route, navigation }) {
     };
   }, []);
 
-  // --- NEW: AUTO-SPEAK TRIGGER ---
   useEffect(() => {
     if (autoSpeak && questions.length > 0) {
       // Add a slight delay (400ms) so it doesn't speak before the UI transitions
@@ -57,7 +82,6 @@ export default function ActiveQuizScreen({ route, navigation }) {
     return () => clearInterval(intervalId);
   }, [timeLeft, timerMode, isEvaluated, score, answerHistory]);
 
-  // Updated to accept a 'forcePlay' argument so auto-speak can override user toggles
   const handleSpeakQuestion = (forcePlay = false) => {
     if (isSpeaking && !forcePlay) {
       Speech.stop();
@@ -68,7 +92,7 @@ export default function ActiveQuizScreen({ route, navigation }) {
     const currentQ = questions[currentIndex];
     if (!currentQ) return;
 
-    Speech.stop(); // Clear any ongoing speech first
+    Speech.stop(); 
     setIsSpeaking(true);
     
     Speech.speak(currentQ.question, {
@@ -81,7 +105,7 @@ export default function ActiveQuizScreen({ route, navigation }) {
   };
 
   const handlePrimaryAction = (isTimeOut = false) => {
-    Speech.stop(); // Stop reading if they click Next/Check
+    Speech.stop(); 
     setIsSpeaking(false);
 
     const currentQ = questions[currentIndex];
@@ -181,7 +205,7 @@ export default function ActiveQuizScreen({ route, navigation }) {
 
         <View className="flex-row items-center">
           <TouchableOpacity 
-            onPress={() => handleSpeakQuestion(false)} // Pass false to allow toggling off manually
+            onPress={() => handleSpeakQuestion(false)} 
             className={`p-2 rounded-full shadow-sm ${timerMode !== 'none' ? 'mr-3' : ''} ${isSpeaking ? (isDark ? 'bg-indigo-900/80 border border-indigo-500' : 'bg-indigo-100 border border-indigo-300') : (isDark ? 'bg-gray-800 border border-transparent' : 'bg-white border border-transparent')}`}
           >
             <SpeakerWaveIcon color={isSpeaking ? (isDark ? "#a5b4fc" : "#4f46e5") : (isDark ? "#9ca3af" : "#6b7280")} size={22} />
@@ -290,10 +314,26 @@ export default function ActiveQuizScreen({ route, navigation }) {
               )}
             </View>
           )}
+
+          {/* --- NEW: EXPLANATION BOX --- */}
+          {isEvaluated && currentQ.explanation && (
+            <View className={`mt-2 mb-6 p-5 rounded-3xl border-2 ${isDark ? 'bg-indigo-900/20 border-indigo-900/50' : 'bg-indigo-50 border-indigo-200'}`}>
+              <View className="flex-row items-center mb-2">
+                <InformationCircleIcon color={isDark ? "#818cf8" : "#4f46e5"} size={22} />
+                <Text className={`font-bold text-base ml-2 ${isDark ? 'text-indigo-300' : 'text-indigo-800'}`}>
+                  Explanation
+                </Text>
+              </View>
+              <Text className={`text-base leading-6 ${isDark ? 'text-gray-300' : 'text-indigo-900'}`}>
+                {currentQ.explanation}
+              </Text>
+            </View>
+          )}
+
         </View>
       </ScrollView>
 
-      <View className="pb-8 pt-4">
+      <View className="pb-8 pt-4 border-t border-transparent">
         <TouchableOpacity 
           onPress={() => handlePrimaryAction(false)}
           disabled={!selectedAnswer && currentQ.type !== 'identification'}

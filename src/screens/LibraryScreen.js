@@ -10,7 +10,7 @@ import {
   TouchableWithoutFeedback,
   Alert,
   ActivityIndicator, 
-  Animated, // <-- NEW: Imported Animated
+  Animated, 
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useQuizStore } from "../store/useQuizStore";
@@ -23,15 +23,9 @@ import { generateDailyChallenge } from "../services/geminiService";
 import { triggerHaptic } from '../utils/hapticHelper';
 
 import {
-  Bars3Icon,
-  EyeIcon,
-  CloudIcon,
-  PlusCircleIcon,
   ClockIcon,
-  AdjustmentsHorizontalIcon,
   DocumentArrowUpIcon,
   DocumentTextIcon,
-  TableCellsIcon,
   ShareIcon,
   BookOpenIcon,
   FolderIcon,        
@@ -53,19 +47,14 @@ import {
   CheckIcon as CheckIconSolid,
   AcademicCapIcon,
   FireIcon, 
-  StarIcon as StarSolid 
+  StarIcon as StarSolid,
+  PlusCircleIcon
 } from "react-native-heroicons/solid";
 
 const ICON_MAP = {
-  folder: FolderIcon,
-  book: BookOpenIcon,
-  briefcase: BriefcaseIcon,
-  bookmark: BookmarkIcon,
-  globe: GlobeAltIcon,
-  map: MapIcon,
-  beaker: BeakerIcon,
-  rocket: RocketLaunchIcon,
-  art: PaintBrushIcon
+  folder: FolderIcon, book: BookOpenIcon, briefcase: BriefcaseIcon,
+  bookmark: BookmarkIcon, globe: GlobeAltIcon, map: MapIcon,
+  beaker: BeakerIcon, rocket: RocketLaunchIcon, art: PaintBrushIcon
 };
 
 export default function LibraryScreen() {
@@ -75,64 +64,34 @@ export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
 
   const { 
-    quizzes, 
-    quizHistory = [], 
-    deleteQuiz, 
-    addQuiz,
-    dailyChallenge,     
-    lastDailyFetch,     
-    setDailyChallenge,
-    collections = [],   
-    createCollection,   
-    editCollection,     
-    deleteCollection,
-    updateCollectionIcon,
-    addQuizzesToCollection,
-    hapticsEnabled
+    quizzes, quizHistory = [], deleteQuiz, addQuiz,
+    dailyChallenge, lastDailyFetch, setDailyChallenge,
+    collections = [], createCollection, editCollection, deleteCollection,
+    updateCollectionIcon, addQuizzesToCollection, hapticsEnabled
   } = useQuizStore();
 
   const recentHistory = quizHistory.slice(0, 3);
   
-  // --- ANIMATION VALUES ---
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
   const popAnim = useRef(new Animated.Value(0)).current;
 
-  // Run animations on mount
   useEffect(() => {
-    // 1. Smooth fade-in and slide up for the whole screen
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 700,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        friction: 8,
-        tension: 40,
-        useNativeDriver: true,
-      })
+      Animated.timing(fadeAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, friction: 8, tension: 40, useNativeDriver: true })
     ]).start();
 
-    // 2. Delayed "Pop" spring animation for the percentages
     setTimeout(() => {
-      Animated.spring(popAnim, {
-        toValue: 1,
-        friction: 5,
-        tension: 60,
-        useNativeDriver: true,
-      }).start();
-    }, 400); // Pops 400ms after screen loads
+      Animated.spring(popAnim, { toValue: 1, friction: 5, tension: 60, useNativeDriver: true }).start();
+    }, 400); 
   }, []);
 
-  // Existing States
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [isGeneratingDaily, setIsGeneratingDaily] = useState(false);
   const [successConfig, setSuccessConfig] = useState({ visible: false, title: "", message: "" });
 
-  // Folder States
   const [isFolderModalVisible, setIsFolderModalVisible] = useState(false);
   const [isFolderActionModalVisible, setIsFolderActionModalVisible] = useState(false);
   const [isIconPickerVisible, setIsIconPickerVisible] = useState(false); 
@@ -141,27 +100,18 @@ export default function LibraryScreen() {
 
   const handlePlayDailyChallenge = async () => {
     const today = new Date().toDateString();
-
     if (dailyChallenge && lastDailyFetch === today) {
       navigation.navigate("QuizPlayer", { quiz: dailyChallenge });
       return;
     }
-
     setIsGeneratingDaily(true);
     try {
       const dailyQuiz = await generateDailyChallenge();
       if (!dailyQuiz || !dailyQuiz.questions) throw new Error("Invalid AI Response");
-
-      const finalQuiz = { 
-        ...dailyQuiz, 
-        id: `daily-${Date.now()}` 
-      };
-      
+      const finalQuiz = { ...dailyQuiz, id: `daily-${Date.now()}` };
       if (setDailyChallenge) setDailyChallenge(finalQuiz);
-      
       setIsGeneratingDaily(false);
       navigation.navigate("QuizPlayer", { quiz: finalQuiz });
-
     } catch (error) {
       setIsGeneratingDaily(false);
       Alert.alert("AI Error", "The AI Masters are busy. Please try again.");
@@ -170,13 +120,8 @@ export default function LibraryScreen() {
 
   const handleSaveFolder = () => {
     if (!folderNameInput.trim()) return;
-    
-    if (selectedFolder) {
-      editCollection(selectedFolder.id, folderNameInput.trim());
-    } else {
-      createCollection(folderNameInput.trim());
-    }
-    
+    if (selectedFolder) editCollection(selectedFolder.id, folderNameInput.trim());
+    else createCollection(folderNameInput.trim());
     setIsFolderModalVisible(false);
     setFolderNameInput("");
     setSelectedFolder(null);
@@ -218,23 +163,9 @@ export default function LibraryScreen() {
     setSelectedFolder(null);
   };
 
-  const handleLongPress = (quizData) => {
-    setSelectedQuiz(quizData);
-    setIsModalVisible(true);
-  };
-
-  const handleEdit = () => {
-    setIsModalVisible(false);
-    if (selectedQuiz) navigation.navigate("EditQuiz", { quiz: selectedQuiz });
-  };
-
-  const handleDelete = () => {
-    if (selectedQuiz) {
-      deleteQuiz(selectedQuiz.id);
-      setIsModalVisible(false);
-      setSelectedQuiz(null);
-    }
-  };
+  const handleLongPress = (quizData) => { setSelectedQuiz(quizData); setIsModalVisible(true); };
+  const handleEdit = () => { setIsModalVisible(false); if (selectedQuiz) navigation.navigate("EditQuiz", { quiz: selectedQuiz }); };
+  const handleDelete = () => { if (selectedQuiz) { deleteQuiz(selectedQuiz.id); setIsModalVisible(false); setSelectedQuiz(null); } };
 
   const handleExport = async () => { 
     if (!selectedQuiz) return;
@@ -243,12 +174,8 @@ export default function LibraryScreen() {
       const fileUri = `${FileSystem.documentDirectory}${safeFilename}.qb`;
       const exportData = { version: "1.0", type: "single", quiz: selectedQuiz };
       await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(exportData, null, 2));
-
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri, { dialogTitle: `Export ${selectedQuiz.title}` });
-      } else {
-        Alert.alert("Error", "Sharing is not available on this device.");
-      }
+      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(fileUri, { dialogTitle: `Export ${selectedQuiz.title}` });
+      else Alert.alert("Error", "Sharing is not available on this device.");
     } catch (error) {
       Alert.alert("Export Failed", "There was an error saving the file.");
     } finally {
@@ -258,33 +185,20 @@ export default function LibraryScreen() {
 
   const handleImport = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({ 
-        type: ["application/json", "*/*"], 
-        copyToCacheDirectory: true,
-        multiple: true 
-      });
-
+      const result = await DocumentPicker.getDocumentAsync({ type: ["application/json", "*/*"], copyToCacheDirectory: true, multiple: true });
       if (!result.canceled && result.assets && result.assets.length > 0) {
         let totalImportedCount = 0;
-
         for (const asset of result.assets) {
           const fileContent = await FileSystem.readAsStringAsync(asset.uri);
           const parsedData = JSON.parse(fileContent);
-
           let quizzesToAdd = [];
-          if (parsedData.type === 'multi' && Array.isArray(parsedData.quizzes)) {
-            quizzesToAdd = parsedData.quizzes;
-          } else {
-            quizzesToAdd = [parsedData.quiz || parsedData];
-          }
+          if (parsedData.type === 'multi' && Array.isArray(parsedData.quizzes)) quizzesToAdd = parsedData.quizzes;
+          else quizzesToAdd = [parsedData.quiz || parsedData];
 
           const newQuizIds = [];
           quizzesToAdd.forEach(q => {
             if (q && q.title && q.questions) {
-              const finalQuiz = { 
-                ...q, 
-                id: `imported-${Date.now()}-${Math.floor(Math.random() * 1000000)}` 
-              };
+              const finalQuiz = { ...q, id: `imported-${Date.now()}-${Math.floor(Math.random() * 1000000)}` };
               addQuiz(finalQuiz);
               newQuizIds.push(finalQuiz.id);
               totalImportedCount++;
@@ -293,27 +207,17 @@ export default function LibraryScreen() {
 
           if (parsedData.collectionName && newQuizIds.length > 0) {
             let targetFolder = useQuizStore.getState().collections.find(c => c.name.toLowerCase() === parsedData.collectionName.toLowerCase());
-            
-            if (targetFolder) {
-              addQuizzesToCollection(targetFolder.id, newQuizIds);
-            } else {
+            if (targetFolder) addQuizzesToCollection(targetFolder.id, newQuizIds);
+            else {
               const newFolderId = `col-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
               useQuizStore.setState((state) => ({
-                collections: [
-                  ...state.collections,
-                  { id: newFolderId, name: parsedData.collectionName, quizIds: newQuizIds }
-                ]
+                collections: [...state.collections, { id: newFolderId, name: parsedData.collectionName, quizIds: newQuizIds }]
               }));
             }
           }
         }
-
         if (totalImportedCount > 0) {
-          setSuccessConfig({ 
-            visible: true, 
-            title: "Import Successful", 
-            message: `Imported ${totalImportedCount} quiz(zes) successfully into your library.` 
-          });
+          setSuccessConfig({ visible: true, title: "Import Successful", message: `Imported ${totalImportedCount} quiz(zes) successfully into your library.` });
           triggerHaptic(hapticsEnabled, 'Heavy');
         } else {
           Alert.alert("Import Error", "Could not find any valid quizzes in the selected file(s).");
@@ -331,31 +235,32 @@ export default function LibraryScreen() {
       <View className="flex-1" style={{ paddingTop: insets.top }}>
         <ScrollView className="flex-1 px-5 pt-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
           
-          {/* Animated Wrapper for initial load */}
+          {/* --- STATIC TOP SECTION --- */}
+          <View className="flex-row justify-between items-center mb-6">
+            <View className="flex-row items-center">
+              <AcademicCapIcon color={isDark ? "#a5b4fc" : "#312e81"} size={30} />
+              <Text className={`text-2xl font-black ml-2 tracking-tight ${isDark ? "text-white" : "text-indigo-900"}`}>QuizBud</Text>
+            </View>
+            <TouchableOpacity className={`p-2 rounded-full ${isDark ? "bg-indigo-900/50" : "bg-indigo-100"}`} onPress={() => navigation.navigate("AIAssistant")}>
+              <SparklesIcon color={isDark ? "#818cf8" : "#4f46e5"} size={22} />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity onPress={handlePlayDailyChallenge} disabled={isGeneratingDaily} className="rounded-[32px] overflow-hidden mb-8 shadow-lg shadow-indigo-300">
+            <LinearGradient colors={isDark ? ['#312e81', '#1e1b4b'] : ['#4f46e5', '#3730a3']} className="p-6 relative">
+              <View className="absolute top-4 right-4 bg-white/20 p-2 rounded-full"><FireIcon color="#fbbf24" size={24} /></View>
+              <Text className="text-indigo-200 font-bold text-[10px] tracking-widest uppercase mb-1">AI Powered Trivia</Text>
+              <Text className="text-white text-2xl font-black mb-2 w-3/4">Today's Challenge</Text>
+              <Text className="text-indigo-100 text-sm mb-4">5 fresh questions generated for you today. Ready to win?</Text>
+              <View className="bg-white py-3 rounded-full items-center flex-row justify-center">
+                {isGeneratingDaily ? <ActivityIndicator color="#4f46e5" size="small" /> : <><SparklesIcon color="#4f46e5" size={18} /><Text className="text-indigo-700 font-bold ml-2">Start Daily Quiz</Text></>}
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {/* --- ANIMATED BOTTOM SECTION --- */}
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             
-            <View className="flex-row justify-between items-center mb-6">
-              <View className="flex-row items-center">
-                <AcademicCapIcon color={isDark ? "#a5b4fc" : "#312e81"} size={30} />
-                <Text className={`text-2xl font-black ml-2 tracking-tight ${isDark ? "text-white" : "text-indigo-900"}`}>QuizBud</Text>
-              </View>
-              <TouchableOpacity className={`p-2 rounded-full ${isDark ? "bg-indigo-900/50" : "bg-indigo-100"}`} onPress={() => navigation.navigate("AIAssistant")}>
-                <SparklesIcon color={isDark ? "#818cf8" : "#4f46e5"} size={22} />
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity onPress={handlePlayDailyChallenge} disabled={isGeneratingDaily} className="rounded-[32px] overflow-hidden mb-8 shadow-lg shadow-indigo-300">
-              <LinearGradient colors={isDark ? ['#312e81', '#1e1b4b'] : ['#4f46e5', '#3730a3']} className="p-6 relative">
-                <View className="absolute top-4 right-4 bg-white/20 p-2 rounded-full"><FireIcon color="#fbbf24" size={24} /></View>
-                <Text className="text-indigo-200 font-bold text-[10px] tracking-widest uppercase mb-1">AI Powered Trivia</Text>
-                <Text className="text-white text-2xl font-black mb-2 w-3/4">Today's Challenge</Text>
-                <Text className="text-indigo-100 text-sm mb-4">5 fresh questions generated for you today. Ready to win?</Text>
-                <View className="bg-white py-3 rounded-full items-center flex-row justify-center">
-                  {isGeneratingDaily ? <ActivityIndicator color="#4f46e5" size="small" /> : <><SparklesIcon color="#4f46e5" size={18} /><Text className="text-indigo-700 font-bold ml-2">Start Daily Quiz</Text></>}
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-
             <Text className={`text-3xl font-extrabold mb-2 leading-tight ${isDark ? "text-white" : "text-gray-900"}`}>Manage Your{"\n"}Quizzes</Text>
             <Text className={`text-sm mb-6 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Organize, refine, and track insights for your personalized study collection.</Text>
 
@@ -386,15 +291,9 @@ export default function LibraryScreen() {
 
                 return (
                   <View key={historyItem.id || index} className={`rounded-[28px] p-6 shadow-sm mb-4 relative overflow-hidden border ${isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
-                    
-                    {/* ANIMATED PERCENTAGE BADGE */}
-                    <Animated.View 
-                      style={{ transform: [{ scale: popAnim }] }} 
-                      className={`absolute -top-4 -right-4 w-20 h-20 rounded-full items-center justify-center pt-3 pr-3 ${badgeBg}`}
-                    >
+                    <Animated.View style={{ transform: [{ scale: popAnim }] }} className={`absolute -top-4 -right-4 w-20 h-20 rounded-full items-center justify-center pt-3 pr-3 ${badgeBg}`}>
                       <Text className={`text-sm font-black ${textCol}`}>{percentage}%</Text>
                     </Animated.View>
-
                     <Text className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-1">Grade: <Text className={textCol}>{grade}</Text></Text>
                     <Text className={`text-xl font-extrabold mb-1 w-3/4 leading-tight ${isDark ? "text-white" : "text-gray-900"}`} numberOfLines={1}>{historyItem.quizTitle}</Text>
                     <Text className={`text-xs font-medium mb-4 ${isDark ? "text-gray-400" : "text-gray-500"}`}>{historyItem.score} / {historyItem.totalPoints} Points Earned</Text>
@@ -411,9 +310,17 @@ export default function LibraryScreen() {
 
             <View className="flex-row justify-between items-center mb-4 mt-6">
               <Text className={`text-lg font-bold ${isDark ? "text-white" : "text-gray-900"}`}>Your Collections</Text>
-              <TouchableOpacity className={`p-2 rounded-full ${isDark ? "bg-indigo-900/50" : "bg-indigo-100 shadow-sm"}`} onPress={() => { setSelectedFolder(null); setFolderNameInput(""); setIsFolderModalVisible(true); }}>
-                <FolderPlusIcon color={isDark ? "#a5b4fc" : "#4f46e5"} size={20} />
-              </TouchableOpacity>
+              
+              <View className="flex-row items-center">
+                {collections.length > 4 && (
+                  <TouchableOpacity onPress={() => { triggerHaptic(hapticsEnabled); navigation.navigate("AllCollectionsScreen"); }}>
+                    <Text className={`font-bold mr-4 ${isDark ? "text-indigo-400" : "text-indigo-600"}`}>View All</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity className={`p-2 rounded-full ${isDark ? "bg-indigo-900/50" : "bg-indigo-100 shadow-sm"}`} onPress={() => { setSelectedFolder(null); setFolderNameInput(""); setIsFolderModalVisible(true); }}>
+                  <FolderPlusIcon color={isDark ? "#a5b4fc" : "#4f46e5"} size={20} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <TouchableOpacity className={`flex-row items-center p-4 rounded-3xl mb-3 shadow-sm ${isDark ? "bg-gray-800" : "bg-white"}`} onPress={() => navigation.navigate("CollectionScreen", { id: 'all', name: "All Quizzes" })}>
@@ -424,9 +331,9 @@ export default function LibraryScreen() {
               </View>
             </TouchableOpacity>
 
-            {collections.map((folder) => {
+            {/* --- LATEST COLLECTIONS (REVERSED ARRAY) --- */}
+            {[...collections].reverse().slice(0, 4).map((folder) => {
               const FolderDisplayIcon = folder.icon && ICON_MAP[folder.icon] ? ICON_MAP[folder.icon] : FolderIcon;
-
               return (
                 <TouchableOpacity
                   key={folder.id}
@@ -457,41 +364,12 @@ export default function LibraryScreen() {
             </View>
 
           </Animated.View>
-          {/* End Animated Wrapper */}
 
           <View className="h-10" />
         </ScrollView>
       </View>
 
-      {/* --- MODALS REMAIN UNCHANGED --- */}
-      <Modal animationType="fade" transparent={true} visible={isModalVisible} onRequestClose={() => setIsModalVisible(false)}>
-        <TouchableOpacity style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }} activeOpacity={1} onPressOut={() => setIsModalVisible(false)}>
-          <TouchableWithoutFeedback>
-            <View className={`w-10/12 rounded-3xl p-5 shadow-2xl ${isDark ? "bg-gray-900" : "bg-white"}`}>
-              <TouchableOpacity className={`p-2 rounded-full self-end mb-1 ${isDark ? "bg-gray-800" : "bg-gray-100"}`} onPress={() => setIsModalVisible(false)}>
-                <XMarkIcon color={isDark ? "#9ca3af" : "#4b5563"} size={18} />
-              </TouchableOpacity>
-              <Text className={`text-xl font-extrabold mb-6 leading-tight ${isDark ? "text-indigo-300" : "text-blue-900"}`}>{selectedQuiz?.title}</Text>
-              
-              <TouchableOpacity className={`flex-row items-center p-3 rounded-2xl mb-3 ${isDark ? "bg-gray-800" : "bg-gray-100"}`} onPress={handleEdit}>
-                <View className={`p-3 rounded-xl mr-3 ${isDark ? "bg-indigo-900" : "bg-indigo-200"}`}><PencilIcon color={isDark ? "#a5b4fc" : "#3730a3"} size={20} /></View>
-                <View><Text className={`text-base font-bold ${isDark ? "text-white" : "text-gray-900"}`}>Edit Quiz</Text></View>
-              </TouchableOpacity>
-
-              <TouchableOpacity className={`flex-row items-center p-3 rounded-2xl mb-3 ${isDark ? "bg-gray-800" : "bg-gray-100"}`} onPress={handleExport}>
-                <View className={`p-3 rounded-xl mr-3 ${isDark ? "bg-green-900" : "bg-green-200"}`}><ShareIcon color={isDark ? "#4ade80" : "#16a34a"} size={20} /></View>
-                <View><Text className={`text-base font-bold ${isDark ? "text-white" : "text-gray-900"}`}>Export Quiz</Text></View>
-              </TouchableOpacity>
-
-              <TouchableOpacity className={`flex-row items-center p-3 rounded-2xl mb-2 ${isDark ? "bg-red-900/30" : "bg-red-50"}`} onPress={handleDelete}>
-                <View className={`p-3 rounded-xl mr-3 ${isDark ? "bg-red-900" : "bg-red-200"}`}><TrashIcon color={isDark ? "#fca5a5" : "#b91c1c"} size={20} /></View>
-                <View><Text className={`text-base font-bold ${isDark ? "text-red-400" : "text-red-700"}`}>Delete Quiz</Text></View>
-              </TouchableOpacity>
-            </View>
-          </TouchableWithoutFeedback>
-        </TouchableOpacity>
-      </Modal>
-
+      {/* --- MODALS --- */}
       <Modal animationType="fade" transparent={true} visible={isFolderModalVisible} onRequestClose={() => setIsFolderModalVisible(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }}>
           <View className={`w-10/12 rounded-[32px] p-6 shadow-2xl ${isDark ? "bg-gray-900" : "bg-white"}`}>
@@ -512,12 +390,7 @@ export default function LibraryScreen() {
               <TouchableOpacity className={`p-2 rounded-full self-end mb-1 ${isDark ? "bg-gray-800" : "bg-gray-100"}`} onPress={() => setIsFolderActionModalVisible(false)}>
                 <XMarkIcon color={isDark ? "#9ca3af" : "#4b5563"} size={18} />
               </TouchableOpacity>
-
-              <View className="flex-row items-center mb-1">
-                <View className="w-2 h-2 rounded-full bg-indigo-500 mr-2" />
-                <Text className="text-[10px] font-bold text-gray-500 tracking-widest uppercase">Folder Actions</Text>
-              </View>
-
+              <View className="flex-row items-center mb-1"><View className="w-2 h-2 rounded-full bg-indigo-500 mr-2" /><Text className="text-[10px] font-bold text-gray-500 tracking-widest uppercase">Folder Actions</Text></View>
               <Text className={`text-xl font-extrabold mb-6 leading-tight ${isDark ? "text-indigo-300" : "text-blue-900"}`}>{selectedFolder?.name}</Text>
               
               <TouchableOpacity className={`flex-row items-center p-3 rounded-2xl mb-3 ${isDark ? "bg-gray-800" : "bg-gray-100"}`} onPress={openFolderEditor}>
@@ -544,24 +417,17 @@ export default function LibraryScreen() {
           <TouchableWithoutFeedback>
             <View className={`w-10/12 rounded-[32px] p-6 shadow-2xl ${isDark ? "bg-gray-900" : "bg-white"}`}>
               <Text className={`text-xl font-extrabold mb-4 text-center ${isDark ? "text-white" : "text-gray-900"}`}>Choose an Icon</Text>
-              
               <View className="flex-row flex-wrap justify-center gap-3 mt-2">
                 {Object.keys(ICON_MAP).map(iconKey => {
                   const IconComp = ICON_MAP[iconKey];
                   const isSelected = selectedFolder?.icon === iconKey || (!selectedFolder?.icon && iconKey === 'folder');
-                  
                   return (
-                    <TouchableOpacity 
-                      key={iconKey} 
-                      onPress={() => handleIconSelect(iconKey)}
-                      className={`p-4 rounded-2xl border ${isSelected ? 'border-indigo-500 bg-indigo-500/20' : (isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50')}`}
-                    >
+                    <TouchableOpacity key={iconKey} onPress={() => handleIconSelect(iconKey)} className={`p-4 rounded-2xl border ${isSelected ? 'border-indigo-500 bg-indigo-500/20' : (isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50')}`}>
                       <IconComp color={isSelected ? "#818cf8" : (isDark ? "#9ca3af" : "#6b7280")} size={32} />
                     </TouchableOpacity>
                   )
                 })}
               </View>
-
             </View>
           </TouchableWithoutFeedback>
         </TouchableOpacity>

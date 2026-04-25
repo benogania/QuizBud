@@ -436,8 +436,8 @@ export default function CollectionScreen() {
                 >
                   <TouchableOpacity
                     className={`flex-row items-center p-4 rounded-3xl mb-3 shadow-sm border 
-                      ${isSelected ? (isDark ? "bg-indigo-900/40 border-indigo-500" : "bg-indigo-50 border-indigo-500") 
-                                   : (isDark ? "bg-gray-800 border-transparent" : "bg-white border-transparent")}`}
+                      ${isSelected ? (isDark ? "bg-indigo-900/40 border-indigo-500" : "bg-indigo-50  border-indigo-500") 
+                                   : (isDark ? "bg-gray-800 border-transparent" : "bg-white border-slate-200")}`}
                     onPress={() => isSelectionMode ? toggleSelection(quizData.id) : openModeSelector(quizData)}
                     onLongPress={() => handleLongPress(quizData.id)}
                     delayLongPress={300}

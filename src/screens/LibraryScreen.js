@@ -230,12 +230,15 @@ export default function LibraryScreen() {
 
   return (
     <View className="flex-1">
-      <LinearGradient colors={isDark ? ["#0f172a", "#0f172a"] : ["#e0e7ff", "#f9fafb"]} className="absolute inset-0" />
+      {/* UPGRADED: Deeper blue gradient ending for ~20% visibility in Light Mode */}
+      <LinearGradient 
+        colors={isDark ? ["#0f172a", "#09090b"] : ["#ffffff", "#dbeafe"]} 
+        className="absolute inset-0" 
+      />
 
       <View className="flex-1" style={{ paddingTop: insets.top }}>
         <ScrollView className="flex-1 px-5 pt-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
           
-          {/* --- STATIC TOP SECTION --- */}
           <View className="flex-row justify-between items-center mb-6">
             <View className="flex-row items-center">
               <AcademicCapIcon color={isDark ? "#a5b4fc" : "#312e81"} size={30} />
@@ -258,13 +261,12 @@ export default function LibraryScreen() {
             </LinearGradient>
           </TouchableOpacity>
 
-          {/* --- ANIMATED BOTTOM SECTION --- */}
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             
             <Text className={`text-3xl font-extrabold mb-2 leading-tight ${isDark ? "text-white" : "text-gray-900"}`}>Manage Your{"\n"}Quizzes</Text>
             <Text className={`text-sm mb-6 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Organize, refine, and track insights for your personalized study collection.</Text>
 
-            <TouchableOpacity className="bg-indigo-600 rounded-full py-4 flex-row justify-center items-center mb-8 shadow-sm" onPress={() => { triggerHaptic(true, 'Heavy'); navigation.navigate("CreateQuiz"); }}>
+            <TouchableOpacity className="bg-indigo-600 rounded-full py-4 flex-row justify-center items-center mb-8 shadow-md shadow-indigo-200" onPress={() => { triggerHaptic(true, 'Heavy'); navigation.navigate("CreateQuiz"); }}>
               <PlusCircleIcon color="white" size={24} />
               <Text className="text-white font-bold ml-2 text-base">Create New Quiz</Text>
             </TouchableOpacity>
@@ -274,8 +276,9 @@ export default function LibraryScreen() {
               <Text className={`text-lg font-bold ml-2 ${isDark ? "text-white" : "text-gray-900"}`}>Recent Activity</Text>
             </View>
 
+            {/* UPGRADED: Enhanced shadows (shadow-xl shadow-slate-300/70) for Recent Activity */}
             {recentHistory.length === 0 ? (
-              <View className={`rounded-[24px] p-6 shadow-sm mb-6 border items-center ${isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
+              <View className={`rounded-[24px] p-6 mb-6 border items-center shadow-xl ${isDark ? "bg-gray-800 border-gray-700 shadow-none" : "bg-white border-slate-100 shadow-slate-300/70"}`}>
                 <Text className={`font-medium text-center leading-5 ${isDark ? "text-gray-400" : "text-gray-400"}`}>No quizzes taken yet.{"\n"}Play one to see your history!</Text>
               </View>
             ) : (
@@ -290,7 +293,7 @@ export default function LibraryScreen() {
                 const retakeQuizData = historyItem.originalQuiz || (fallbackQuizItem ? fallbackQuizItem.quiz || fallbackQuizItem : null);
 
                 return (
-                  <View key={historyItem.id || index} className={`rounded-[28px] p-6 shadow-sm mb-4 relative overflow-hidden border ${isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
+                  <View key={historyItem.id || index} className={`rounded-[28px] p-6 mb-4 relative overflow-hidden border shadow-xl ${isDark ? "bg-gray-800 border-gray-700 shadow-none" : "bg-white border-slate-100 shadow-slate-300/70"}`}>
                     <Animated.View style={{ transform: [{ scale: popAnim }] }} className={`absolute -top-4 -right-4 w-20 h-20 rounded-full items-center justify-center pt-3 pr-3 ${badgeBg}`}>
                       <Text className={`text-sm font-black ${textCol}`}>{percentage}%</Text>
                     </Animated.View>
@@ -317,27 +320,27 @@ export default function LibraryScreen() {
                     <Text className={`font-bold mr-4 ${isDark ? "text-indigo-400" : "text-indigo-600"}`}>View All</Text>
                   </TouchableOpacity>
                 )}
-                <TouchableOpacity className={`p-2 rounded-full ${isDark ? "bg-indigo-900/50" : "bg-indigo-100 shadow-sm"}`} onPress={() => { setSelectedFolder(null); setFolderNameInput(""); setIsFolderModalVisible(true); }}>
+                <TouchableOpacity className={`p-2 rounded-full shadow-sm ${isDark ? "bg-indigo-900/50" : "bg-indigo-100 shadow-indigo-200"}`} onPress={() => { setSelectedFolder(null); setFolderNameInput(""); setIsFolderModalVisible(true); }}>
                   <FolderPlusIcon color={isDark ? "#a5b4fc" : "#4f46e5"} size={20} />
                 </TouchableOpacity>
               </View>
             </View>
 
-            <TouchableOpacity className={`flex-row items-center p-4 rounded-3xl mb-3 shadow-sm ${isDark ? "bg-gray-800" : "bg-white"}`} onPress={() => navigation.navigate("CollectionScreen", { id: 'all', name: "All Quizzes" })}>
-              <View className={`p-3 rounded-2xl mr-4 ${isDark ? "bg-indigo-900" : "bg-indigo-50"}`}><DocumentTextIcon color={isDark ? "#a5b4fc" : "#3730a3"} size={24} /></View>
+            {/* Collections: Left Exactly As Requested (With user's original borders) */}
+            <TouchableOpacity className={`flex-row items-center p-4 border rounded-3xl mb-3 shadow-sm ${isDark ? "bg-gray-800 border-slate-800 " : "bg-white border-slate-200 "}`} onPress={() => navigation.navigate("CollectionScreen", { id: 'all', name: "All Quizzes" })}>
+              <View className={`p-3 rounded-2xl mr-4 ${isDark ? "bg-indigo-900" : "bg-indigo-50 "}`}><DocumentTextIcon color={isDark ? "#a5b4fc" : "#3730a3"} size={24} /></View>
               <View className="flex-1">
                 <Text className={`font-bold text-base ${isDark ? "text-white" : "text-gray-900"}`}>All Quizzes</Text>
                 <Text className={`text-[10px] mt-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>{quizzes.length} Quizzes</Text>
               </View>
             </TouchableOpacity>
 
-            {/* --- LATEST COLLECTIONS (REVERSED ARRAY) --- */}
             {[...collections].reverse().slice(0, 4).map((folder) => {
               const FolderDisplayIcon = folder.icon && ICON_MAP[folder.icon] ? ICON_MAP[folder.icon] : FolderIcon;
               return (
                 <TouchableOpacity
                   key={folder.id}
-                  className={`flex-row items-center p-4 rounded-3xl mb-3 shadow-xl ${isDark ? "bg-gray-800" : "bg-white"}`}
+                  className={`flex-row items-center p-4 border rounded-3xl mb-3 shadow-xl ${isDark ? "bg-gray-800 border-slate-800 " : "bg-white border-slate-200"}`}
                   onPress={() => navigation.navigate("CollectionScreen", { id: folder.id, name: folder.name })}
                   onLongPress={() => handleLongPressFolder(folder)}
                   delayLongPress={400}
@@ -353,11 +356,11 @@ export default function LibraryScreen() {
               );
             })}
 
-            <View className={`border-2 border-dashed rounded-[40px] p-8 items-center mt-6 mb-10 ${isDark ? "bg-indigo-900/10 border-indigo-800" : "bg-indigo-50 border-indigo-200"}`}>
+            <View className={`border-2 border-dashed rounded-[40px] p-8 items-center mt-6 mb-10 ${isDark ? "bg-indigo-900/10 border-indigo-800" : "bg-indigo-50/50 border-indigo-200"}`}>
               <View className="bg-indigo-600 p-3 rounded-xl mb-4"><DocumentArrowUpIcon color="white" size={28} /></View>
               <Text className={`text-xl font-extrabold mb-2 text-center ${isDark ? "text-white" : "text-gray-900"}`}>Import Local Quiz</Text>
               <Text className={`text-sm mb-8 text-center leading-5 px-4 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Upload your existing quiz files in{"\n"}JSON or .qb format.</Text>
-              <TouchableOpacity className={`rounded-full py-4 px-10 flex-row items-center justify-center w-full shadow-sm border ${isDark ? "bg-gray-800 border-gray-700" : "bg-white border-indigo-100"}`} onPress={handleImport}>
+              <TouchableOpacity className={`rounded-full py-4 px-10 flex-row items-center justify-center w-full shadow-sm border ${isDark ? "bg-gray-800 border-gray-700" : "bg-white border-indigo-100 shadow-indigo-100"}`} onPress={handleImport}>
                 <DocumentTextIcon color={isDark ? "#a5b4fc" : "#1e3a8a"} size={20} />
                 <Text className={`font-bold text-base ml-3 ${isDark ? "text-indigo-200" : "text-blue-900"}`}>Import File</Text>
               </TouchableOpacity>

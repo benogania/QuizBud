@@ -89,7 +89,7 @@ export default function GrammarPracticeScreen() {
       <View className="flex-1 px-5">
         
         {/* Header */}
-        <View className="flex-row items-center justify-between py-4 border-b border-gray-200 dark:border-gray-800">
+        <View className="flex-row items-center justify-between py-4 border-b dark:border-gray-800">
           <View className="flex-row items-center">
             <TouchableOpacity onPress={() => navigation.goBack()} className="p-2 -ml-2 rounded-full">
               <ArrowLeftIcon color={isDark ? "white" : "#1e3a8a"} size={24} />
@@ -111,7 +111,7 @@ export default function GrammarPracticeScreen() {
           <Text className={`font-bold tracking-widest uppercase text-xs mb-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
             Question {currentIndex + 1} of {grammarPracticeData.length}
           </Text>
-          <View className={`h-2 rounded-full mb-8 ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`}>
+          <View className={`h-2 rounded-full  mb-8 ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`}>
             <View className={`h-2 rounded-full ${isDark ? 'bg-indigo-500' : 'bg-blue-600'}`} style={{ width: `${((currentIndex + 1) / grammarPracticeData.length) * 100}%` }} />
           </View>
 

@@ -293,7 +293,7 @@ export default function StatsScreen() {
         <Text className={`text-4xl font-black mb-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>Your Stats</Text>
 
         {/* Weekly / Monthly Toggle */}
-        <View className={`p-1.5 rounded-full flex-row mb-8 shadow-inner ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+        <View className={`p-1.5 rounded-full flex-row mb-8 shadow-inner ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`}>
           <TouchableOpacity 
             onPress={() => setViewMode('weekly')}
             className={`flex-1 py-3 items-center rounded-full ${viewMode === 'weekly' ? (isDark ? 'bg-gray-700' : 'bg-white shadow-sm') : ''}`}
@@ -309,8 +309,9 @@ export default function StatsScreen() {
         </View>
 
         {/* --- ANIMATED CHART VIEWS --- */}
+        {/* ADDED: shadow-md shadow-slate-200/50 border border-slate-100 to charts */}
         {viewMode === 'weekly' ? (
-          <View className={`rounded-[40px] p-8 shadow-sm mb-6 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+          <View className={`rounded-[40px] p-8 shadow-md mb-6 border ${isDark ? 'bg-gray-800 border-gray-800 shadow-none' : 'bg-white border-slate-100 shadow-slate-200/50'}`}>
             <Text className={`text-2xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>Learning Journey</Text>
             <Text className={`text-sm mt-1 mb-10 leading-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Overall mastery progress for the current week</Text>
 
@@ -340,7 +341,7 @@ export default function StatsScreen() {
             </View>
           </View>
         ) : (
-          <View className={`rounded-[40px] p-8 shadow-sm mb-6 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+          <View className={`rounded-[40px] p-8 shadow-md mb-6 border ${isDark ? 'bg-gray-800 border-gray-800 shadow-none' : 'bg-white border-slate-100 shadow-slate-200/50'}`}>
             <View className="flex-row justify-between items-start mb-6">
               <View>
                 <Text className={`text-2xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>Mastery Growth</Text>
@@ -379,8 +380,8 @@ export default function StatsScreen() {
           </View>
         )}
 
-        {/* AI Insight Card (Cached) */}
-        <View className="bg-[#2a41d0] rounded-[40px] p-8 mb-6 shadow-md shadow-indigo-200">
+        {/* AI Insight Card */}
+        <View className="bg-[#2a41d0] rounded-[40px] p-8 mb-6 shadow-md shadow-indigo-200 border border-indigo-500/30">
           <View className="flex-row justify-between items-start">
             <SparklesIcon color="white" size={30} />
             {isGeneratingInsight && <ActivityIndicator color="white" size="small" />}
@@ -402,9 +403,10 @@ export default function StatsScreen() {
         </View>
 
         {/* --- SCROLL-TRIGGERED METRIC BOXES --- */}
+        {/* ADDED: shadow-md shadow-slate-200/50 border border-slate-100 and bg-white to the container */}
         <View 
           onLayout={(e) => setMetricsY(e.nativeEvent.layout.y)}
-          className={`rounded-[40px] p-6 flex-row flex-wrap mb-6 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}
+          className={`rounded-[40px] p-6 flex-row flex-wrap mb-6 border shadow-md ${isDark ? 'bg-gray-800 border-gray-800 shadow-none' : 'bg-white border-slate-100 shadow-slate-200/50'}`}
         >
           <MetricBox 
             trigger={triggerMetrics}
@@ -435,7 +437,7 @@ export default function StatsScreen() {
         <Text className={`text-lg font-black mb-4 ${isDark ? 'text-white' : 'text-gray-800'}`}>Subject Performance</Text>
         
         {stats.subjectPerformance.length === 0 ? (
-          <View className={`p-6 rounded-3xl border mb-6 items-center ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100 shadow-sm'}`}>
+          <View className={`p-6 rounded-3xl border mb-6 items-center shadow-md ${isDark ? 'bg-gray-800 border-gray-700 shadow-none' : 'bg-white border-slate-100 shadow-slate-200/50'}`}>
             <Text className="text-gray-400 text-center">Complete some quizzes with subjects to see your performance breakdown!</Text>
           </View>
         ) : (
@@ -457,8 +459,9 @@ export default function StatsScreen() {
               }
             }
 
+            {/* ADDED: border shadow-md and slate-100 borders to list items */}
             return (
-              <View key={sub.title} className={`rounded-3xl p-4 flex-row items-center mb-3 shadow-sm ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+              <View key={sub.title} className={`rounded-3xl p-4 flex-row items-center mb-3 border shadow-md ${isDark ? 'bg-gray-800 border-gray-800 shadow-none' : 'bg-white border-slate-100 shadow-slate-200/50'}`}>
                 <View className={`p-3 rounded-2xl ${isDark ? 'bg-indigo-900/50' : 'bg-blue-50'}`}>
                   <Icon color={isDark ? "#818cf8" : "#1e3a8a"} size={20} />
                 </View>
@@ -477,9 +480,10 @@ export default function StatsScreen() {
         {/* --- SCROLL-TRIGGERED STUDY HABITS --- */}
         <Text className={`text-lg font-black mt-8 mb-4 ${isDark ? 'text-white' : 'text-gray-800'}`}>Study Habits</Text>
         
+        {/* ADDED: border shadow-md and slate-100 background transition */}
         <View 
           onLayout={(e) => setHabitsY(e.nativeEvent.layout.y)}
-          className={`rounded-[40px] p-6 mb-20 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}
+          className={`rounded-[40px] p-6 mb-20 border shadow-md ${isDark ? 'bg-gray-800 border-gray-800 shadow-none' : 'bg-white border-slate-100 shadow-slate-200/50'}`}
         >
             <Text className={`${isDark ? 'text-indigo-300' : 'text-blue-900'} font-bold text-xs uppercase tracking-widest mb-2`}>Weekly Quiz Intensity</Text>
             <View className="flex-row items-baseline mb-4">
@@ -523,9 +527,8 @@ export default function StatsScreen() {
   );
 }
 
-// Updated MetricBox to use AnimatedNumber internally
 const MetricBox = ({ label, value, format, trend, isDark, trigger }) => (
-  <View className={`w-[100%] py-4 border-b flex-row justify-between items-center ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+  <View className={`w-[100%] py-4 border-b flex-row justify-between items-center ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
     <View>
         <Text className="text-gray-400 text-[10px] font-bold uppercase">{label}</Text>
         <AnimatedNumber 

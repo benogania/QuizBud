@@ -24,6 +24,7 @@ import GrammarScreen from './src/screens/GrammarScreen';
 import GrammarPracticeScreen from './src/screens/GrammarPracticeScreen';
 import SpeakingScreen from './src/screens/SpeakingScreen';
 import AllCollectionsScreen from './src/screens/AllCollectionsScreen';
+import RecentActivityScreen from './src/screens/RecentActivityScreen';
 
 
 // SplashScreen.preventAutoHideAsync();
@@ -94,6 +95,7 @@ export default function App() {
         <Stack.Screen name="GrammarPracticeScreen" component={GrammarPracticeScreen} />
         <Stack.Screen name="SpeakingScreen" component={SpeakingScreen} />
         <Stack.Screen name="AllCollectionsScreen" component={AllCollectionsScreen} />
+        <Stack.Screen name="RecentActivityScreen" component={RecentActivityScreen} />
 
         <Stack.Screen name="Flashcards" component={FlashcardScreen} />
         <Stack.Screen name="TimeAttack" component={TimeAttackScreen} />

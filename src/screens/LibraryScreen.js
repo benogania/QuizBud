@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Switch,
   Modal,
   TouchableWithoutFeedback,
   Alert,
@@ -36,7 +35,8 @@ import {
   MapIcon,
   BeakerIcon,
   RocketLaunchIcon,
-  PaintBrushIcon
+  PaintBrushIcon,
+  ChevronRightIcon
 } from "react-native-heroicons/outline";
 
 import {
@@ -55,6 +55,19 @@ const ICON_MAP = {
   folder: FolderIcon, book: BookOpenIcon, briefcase: BriefcaseIcon,
   bookmark: BookmarkIcon, globe: GlobeAltIcon, map: MapIcon,
   beaker: BeakerIcon, rocket: RocketLaunchIcon, art: PaintBrushIcon
+};
+
+const formatHistoryDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
 export default function LibraryScreen() {
@@ -163,26 +176,6 @@ export default function LibraryScreen() {
     setSelectedFolder(null);
   };
 
-  const handleLongPress = (quizData) => { setSelectedQuiz(quizData); setIsModalVisible(true); };
-  const handleEdit = () => { setIsModalVisible(false); if (selectedQuiz) navigation.navigate("EditQuiz", { quiz: selectedQuiz }); };
-  const handleDelete = () => { if (selectedQuiz) { deleteQuiz(selectedQuiz.id); setIsModalVisible(false); setSelectedQuiz(null); } };
-
-  const handleExport = async () => { 
-    if (!selectedQuiz) return;
-    try {
-      const safeFilename = selectedQuiz.title.replace(/[^a-zA-Z0-9]/g, "_");
-      const fileUri = `${FileSystem.documentDirectory}${safeFilename}.qb`;
-      const exportData = { version: "1.0", type: "single", quiz: selectedQuiz };
-      await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(exportData, null, 2));
-      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(fileUri, { dialogTitle: `Export ${selectedQuiz.title}` });
-      else Alert.alert("Error", "Sharing is not available on this device.");
-    } catch (error) {
-      Alert.alert("Export Failed", "There was an error saving the file.");
-    } finally {
-      setIsModalVisible(false);
-    }
-  };
-
   const handleImport = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: ["application/json", "*/*"], copyToCacheDirectory: true, multiple: true });
@@ -219,36 +212,39 @@ export default function LibraryScreen() {
         if (totalImportedCount > 0) {
           setSuccessConfig({ visible: true, title: "Import Successful", message: `Imported ${totalImportedCount} quiz(zes) successfully into your library.` });
           triggerHaptic(hapticsEnabled, 'Heavy');
-        } else {
-          Alert.alert("Import Error", "Could not find any valid quizzes in the selected file(s).");
         }
       }
     } catch (error) {
-      Alert.alert("Import Failed", "Could not read the selected file(s). Ensure they are valid .qb or JSON files.");
+      Alert.alert("Import Failed", "Could not read the selected file(s).");
     }
   };
 
   return (
     <View className="flex-1">
-      {/* UPGRADED: Deeper blue gradient ending for ~20% visibility in Light Mode */}
+      {/* NEW CUSTOM COLOR PALETTE BACKGROUND
+        Uses '#fbf8ff' (surface) fading into '#e0e0fa' (surface-container-highest)
+      */}
       <LinearGradient 
-        colors={isDark ? ["#0f172a", "#09090b"] : ["#ffffff", "#dbeafe"]} 
+        colors={isDark ? ["#ef4444", "#09090b"] : ["#fbf8ff", "#e0e0fa"]} 
         className="absolute inset-0" 
       />
 
-      <View className="flex-1" style={{ paddingTop: insets.top }}>
+      <View className="flex-1 bg-[#faf8fc]" style={{ paddingTop: insets.top }}>
         <ScrollView className="flex-1 px-5 pt-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
           
+          {/* Header */}
           <View className="flex-row justify-between items-center mb-6">
             <View className="flex-row items-center">
               <AcademicCapIcon color={isDark ? "#a5b4fc" : "#312e81"} size={30} />
               <Text className={`text-2xl font-black ml-2 tracking-tight ${isDark ? "text-white" : "text-indigo-900"}`}>QuizBud</Text>
             </View>
-            <TouchableOpacity className={`p-2 rounded-full ${isDark ? "bg-indigo-900/50" : "bg-indigo-100"}`} onPress={() => navigation.navigate("AIAssistant")}>
+            {/* Custom palette color for header icon background */}
+            <TouchableOpacity className={`p-2 rounded-full ${isDark ? "bg-indigo-900/50" : "bg-[#e6e6ff]"}`} onPress={() => navigation.navigate("AIAssistant")}>
               <SparklesIcon color={isDark ? "#818cf8" : "#4f46e5"} size={22} />
             </TouchableOpacity>
           </View>
 
+          {/* Daily Pick Card */}
           <TouchableOpacity onPress={handlePlayDailyChallenge} disabled={isGeneratingDaily} className="rounded-[32px] overflow-hidden mb-8 shadow-lg shadow-indigo-300">
             <LinearGradient colors={isDark ? ['#312e81', '#1e1b4b'] : ['#4f46e5', '#3730a3']} className="p-6 relative">
               <View className="absolute top-4 right-4 bg-white/20 p-2 rounded-full"><FireIcon color="#fbbf24" size={24} /></View>
@@ -271,64 +267,96 @@ export default function LibraryScreen() {
               <Text className="text-white font-bold ml-2 text-base">Create New Quiz</Text>
             </TouchableOpacity>
 
-            <View className="flex-row items-center mb-4 mt-2">
-              <ClockIcon color="#4f46e5" size={20} />
-              <Text className={`text-lg font-bold ml-2 ${isDark ? "text-white" : "text-gray-900"}`}>Recent Activity</Text>
+            <View className="flex-row justify-between items-center mb-4 mt-2">
+              <Text className={`text-lg font-bold ${isDark ? "text-white" : "text-gray-800"}`}>Recent Activity</Text>
+              <TouchableOpacity onPress={() => {
+  triggerHaptic(hapticsEnabled);
+  navigation.navigate("RecentActivityScreen"); // 🚨 Routes to your new screen!
+}}>
+  <Text className={`font-bold text-sm ${isDark ? "text-indigo-400" : "text-indigo-600"}`}>View All</Text>
+</TouchableOpacity>
             </View>
 
-            {/* UPGRADED: Enhanced shadows (shadow-xl shadow-slate-300/70) for Recent Activity */}
+            {/* --- RECENT ACTIVITY CARDS --- */}
             {recentHistory.length === 0 ? (
-              <View className={`rounded-[24px] p-6 mb-6 border items-center shadow-xl ${isDark ? "bg-gray-800 border-gray-700 shadow-none" : "bg-white border-slate-100 shadow-slate-300/70"}`}>
-                <Text className={`font-medium text-center leading-5 ${isDark ? "text-gray-400" : "text-gray-400"}`}>No quizzes taken yet.{"\n"}Play one to see your history!</Text>
+              <View className={`rounded-[24px] p-6 mb-6 border items-center shadow-sm ${isDark ? "bg-gray-800 border-gray-700 shadow-none" : "bg-white border-slate-100 shadow-slate-200/50"}`}>
+                <Text className={`font-medium text-center leading-5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>No quizzes taken yet.</Text>
               </View>
             ) : (
               recentHistory.map((historyItem, index) => {
                 const percentage = Math.round((historyItem.score / historyItem.totalPoints) * 100);
-                let grade = "F", badgeBg = "bg-red-400", textCol = "text-red-900";
-                if (percentage >= 90) { grade = "A"; badgeBg = "bg-green-400"; textCol = "text-green-900"; } 
-                else if (percentage >= 75) { grade = "B"; badgeBg = "bg-blue-400"; textCol = "text-blue-900"; } 
-                else if (percentage >= 50) { grade = "C"; badgeBg = "bg-yellow-400"; textCol = "text-yellow-900"; }
+                
+                let ringColorClass = "border-red-600";
+                let textColClass = "text-red-600";
+                
+                if (percentage >= 75) { 
+                  ringColorClass = "border-indigo-600"; 
+                  textColClass = "text-indigo-700"; 
+                } else if (percentage >= 50) { 
+                  ringColorClass = "border-amber-500"; 
+                  textColClass = "text-amber-600"; 
+                }
 
                 const fallbackQuizItem = quizzes.find(item => (item.quiz || item).title === historyItem.quizTitle);
                 const retakeQuizData = historyItem.originalQuiz || (fallbackQuizItem ? fallbackQuizItem.quiz || fallbackQuizItem : null);
+                
+                const displayDate = formatHistoryDate(historyItem.date);
 
                 return (
-                  <View key={historyItem.id || index} className={`rounded-[28px] p-6 mb-4 relative overflow-hidden border shadow-xl ${isDark ? "bg-gray-800 border-gray-700 shadow-none" : "bg-white border-slate-100 shadow-slate-300/70"}`}>
-                    <Animated.View style={{ transform: [{ scale: popAnim }] }} className={`absolute -top-4 -right-4 w-20 h-20 rounded-full items-center justify-center pt-3 pr-3 ${badgeBg}`}>
-                      <Text className={`text-sm font-black ${textCol}`}>{percentage}%</Text>
-                    </Animated.View>
-                    <Text className="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-1">Grade: <Text className={textCol}>{grade}</Text></Text>
-                    <Text className={`text-xl font-extrabold mb-1 w-3/4 leading-tight ${isDark ? "text-white" : "text-gray-900"}`} numberOfLines={1}>{historyItem.quizTitle}</Text>
-                    <Text className={`text-xs font-medium mb-4 ${isDark ? "text-gray-400" : "text-gray-500"}`}>{historyItem.score} / {historyItem.totalPoints} Points Earned</Text>
-                    <View className="flex-row justify-between items-center mt-2">
-                      <Text className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{new Date(historyItem.date).toLocaleDateString()}</Text>
-                      <TouchableOpacity className={`border px-4 py-2 rounded-full ${isDark ? "bg-indigo-900 border-indigo-700" : "bg-indigo-50 border-indigo-100"}`} onPress={() => navigation.navigate("Results", { score: historyItem.score, totalPoints: historyItem.totalPoints, history: historyItem.history, quizTitle: historyItem.quizTitle, quiz: retakeQuizData })}>
-                        <Text className={`font-bold text-xs ${isDark ? "text-indigo-200" : "text-indigo-900"}`}>Review Answers {">"}</Text>
-                      </TouchableOpacity>
+                  <View 
+                    key={historyItem.id || index} 
+                    className={`rounded-[24px] p-5 mb-4 border shadow-xl ${isDark ? "bg-gray-800 border-gray-700 shadow-none" : "bg-white border-slate-100 shadow-slate-300/70"}`}
+                  >
+                    <View className="flex-row justify-between items-center">
+                      
+                      <View className="flex-1 pr-4">
+                        <Text className={`text-[15px] font-bold mb-1 leading-tight ${isDark ? "text-white" : "text-gray-900"}`} numberOfLines={1}>
+                          {historyItem.quizTitle}
+                        </Text>
+                        <Text className={`text-xs font-semibold ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                          {displayDate} • {historyItem.score}/{historyItem.totalPoints} Points Earned
+                        </Text>
+                      </View>
+                      
+                      <Animated.View style={{ transform: [{ scale: popAnim }] }} className={`w-[52px] h-[52px] rounded-full border-[3.5px] items-center justify-center ${isDark && ringColorClass.includes('indigo') ? 'border-indigo-400' : ringColorClass}`}>
+                        <Text className={`text-sm font-black ${isDark && textColClass.includes('indigo') ? 'text-indigo-300' : textColClass}`}>
+                          {percentage}%
+                        </Text>
+                      </Animated.View>
+
                     </View>
+
+                    {/* Custom Palette 'Review' Button: #edecff (surface-container) */}
+                    <TouchableOpacity 
+                      className={`mt-4 py-3.5 rounded-xl flex-row justify-center items-center ${isDark ? "bg-indigo-900/40" : "bg-[#edecff]"}`} 
+                      onPress={() => navigation.navigate("Results", { score: historyItem.score, totalPoints: historyItem.totalPoints, history: historyItem.history, quizTitle: historyItem.quizTitle, quiz: retakeQuizData })}
+                    >
+                      <Text className={`font-bold text-sm ${isDark ? "text-indigo-300" : "text-indigo-600"}`}>Review</Text>
+                    </TouchableOpacity>
                   </View>
                 );
               })
             )}
 
+            {/* --- COLLECTIONS SECTION --- */}
             <View className="flex-row justify-between items-center mb-4 mt-6">
               <Text className={`text-lg font-bold ${isDark ? "text-white" : "text-gray-900"}`}>Your Collections</Text>
-              
               <View className="flex-row items-center">
                 {collections.length > 4 && (
-                  <TouchableOpacity onPress={() => { triggerHaptic(hapticsEnabled); navigation.navigate("AllCollectionsScreen"); }}>
+                  <TouchableOpacity onPress={() => navigation.navigate("AllCollectionsScreen")}>
                     <Text className={`font-bold mr-4 ${isDark ? "text-indigo-400" : "text-indigo-600"}`}>View All</Text>
                   </TouchableOpacity>
                 )}
-                <TouchableOpacity className={`p-2 rounded-full shadow-sm ${isDark ? "bg-indigo-900/50" : "bg-indigo-100 shadow-indigo-200"}`} onPress={() => { setSelectedFolder(null); setFolderNameInput(""); setIsFolderModalVisible(true); }}>
+                {/* Custom palette icon container */}
+                <TouchableOpacity className={`p-2 rounded-full shadow-sm ${isDark ? "bg-indigo-900/50" : "bg-[#e6e6ff] shadow-indigo-200"}`} onPress={() => { setSelectedFolder(null); setFolderNameInput(""); setIsFolderModalVisible(true); }}>
                   <FolderPlusIcon color={isDark ? "#a5b4fc" : "#4f46e5"} size={20} />
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Collections: Left Exactly As Requested (With user's original borders) */}
             <TouchableOpacity className={`flex-row items-center p-4 border rounded-3xl mb-3 shadow-sm ${isDark ? "bg-gray-800 border-slate-800 " : "bg-white border-slate-200 "}`} onPress={() => navigation.navigate("CollectionScreen", { id: 'all', name: "All Quizzes" })}>
-              <View className={`p-3 rounded-2xl mr-4 ${isDark ? "bg-indigo-900" : "bg-indigo-50 "}`}><DocumentTextIcon color={isDark ? "#a5b4fc" : "#3730a3"} size={24} /></View>
+              {/* Custom palette icon container: #f4f2ff */}
+              <View className={`p-3 rounded-2xl mr-4 ${isDark ? "bg-indigo-900" : "bg-[#f4f2ff]"}`}><DocumentTextIcon color={isDark ? "#a5b4fc" : "#3730a3"} size={24} /></View>
               <View className="flex-1">
                 <Text className={`font-bold text-base ${isDark ? "text-white" : "text-gray-900"}`}>All Quizzes</Text>
                 <Text className={`text-[10px] mt-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>{quizzes.length} Quizzes</Text>
@@ -345,7 +373,8 @@ export default function LibraryScreen() {
                   onLongPress={() => handleLongPressFolder(folder)}
                   delayLongPress={400}
                 >
-                  <View className={`p-3 rounded-2xl mr-4 ${isDark ? "bg-indigo-900" : "bg-indigo-50"}`}>
+                  {/* Custom palette icon container: #f4f2ff */}
+                  <View className={`p-3 rounded-2xl mr-4 ${isDark ? "bg-indigo-900" : "bg-[#f4f2ff]"}`}>
                     <FolderDisplayIcon color={isDark ? "#a5b4fc" : "#3730a3"} size={24} />
                   </View>
                   <View className="flex-1">
@@ -356,10 +385,11 @@ export default function LibraryScreen() {
               );
             })}
 
-            <View className={`border-2 border-dashed rounded-[40px] p-8 items-center mt-6 mb-10 ${isDark ? "bg-indigo-900/10 border-indigo-800" : "bg-indigo-50/50 border-indigo-200"}`}>
+            {/* Import Footer - Uses #f4f2ff for background */}
+            <View className={`border-2 border-dashed rounded-[40px] p-8 items-center mt-6 mb-10 ${isDark ? "bg-indigo-900/10 border-indigo-800" : "bg-[#f4f2ff] border-indigo-200"}`}>
               <View className="bg-indigo-600 p-3 rounded-xl mb-4"><DocumentArrowUpIcon color="white" size={28} /></View>
               <Text className={`text-xl font-extrabold mb-2 text-center ${isDark ? "text-white" : "text-gray-900"}`}>Import Local Quiz</Text>
-              <Text className={`text-sm mb-8 text-center leading-5 px-4 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Upload your existing quiz files in{"\n"}JSON or .qb format.</Text>
+              <Text className={`text-sm mb-8 text-center leading-5 px-4 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Upload your existing quiz files in JSON or .qb format.</Text>
               <TouchableOpacity className={`rounded-full py-4 px-10 flex-row items-center justify-center w-full shadow-sm border ${isDark ? "bg-gray-800 border-gray-700" : "bg-white border-indigo-100 shadow-indigo-100"}`} onPress={handleImport}>
                 <DocumentTextIcon color={isDark ? "#a5b4fc" : "#1e3a8a"} size={20} />
                 <Text className={`font-bold text-base ml-3 ${isDark ? "text-indigo-200" : "text-blue-900"}`}>Import File</Text>
@@ -367,12 +397,11 @@ export default function LibraryScreen() {
             </View>
 
           </Animated.View>
-
           <View className="h-10" />
         </ScrollView>
       </View>
 
-      {/* --- MODALS --- */}
+      {/* --- FOLDER MODALS --- */}
       <Modal animationType="fade" transparent={true} visible={isFolderModalVisible} onRequestClose={() => setIsFolderModalVisible(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }}>
           <View className={`w-10/12 rounded-[32px] p-6 shadow-2xl ${isDark ? "bg-gray-900" : "bg-white"}`}>
@@ -436,6 +465,7 @@ export default function LibraryScreen() {
         </TouchableOpacity>
       </Modal>
 
+      {/* Success Modal */}
       <Modal animationType="fade" transparent={true} visible={successConfig.visible} onRequestClose={() => setSuccessConfig({ ...successConfig, visible: false })}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }}>
           <View className={`w-10/12 rounded-[40px] p-8 items-center shadow-2xl ${isDark ? "bg-gray-900" : "bg-white"}`}>

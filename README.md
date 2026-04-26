@@ -28,7 +28,7 @@ Ready to test your knowledge? Download the latest Android release below:
 - **📂 Collection Management:** Organize your quizzes into custom folders with personalized icons.
 - **📥 Advanced Import/Export:** Share quizzes easily via `.qb` files, JSON uploads, or direct clipboard pasting.
 - **🔊 Accessible Gameplay:** Built-in Text-to-Speech (TTS) to automatically read questions aloud.
-- **🌗 Beautiful UI:** Seamless Light & Dark mode support with Canva-style gradients and rich haptic feedback.
+- **🌗 Beautiful UI:** Seamless Light & Dark mode support
 
 ---
 
@@ -57,5 +57,5 @@ To run this project locally on your machine, follow these steps:
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/benogania/QuizBud.git
-   
+
    cd QuizBud

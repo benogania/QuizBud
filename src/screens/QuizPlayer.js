@@ -9,7 +9,8 @@ import {
   CheckCircleIcon,
   PencilSquareIcon,
   Cog6ToothIcon,
-  SpeakerWaveIcon 
+  QueueListIcon,       // 🚨 FIXED: Changed from NumberedListIcon to a valid icon!
+  ArrowsUpDownIcon
 } from 'react-native-heroicons/outline';
 
 export default function QuizPlayer({ route, navigation }) {
@@ -25,12 +26,15 @@ export default function QuizPlayer({ route, navigation }) {
   // State for Gameplay Rules
   const [shuffleQuestions, setShuffleQuestions] = useState(false); 
   const [immediateFeedback, setImmediateFeedback] = useState(true); 
-  const [autoSpeak, setAutoSpeak] = useState(false); // <-- NEW: Auto-Speak State
+  const [autoSpeak, setAutoSpeak] = useState(false); 
 
   const totalQuestions = questions.length;
   const mcqCount = questions.filter(q => q.type === 'multiple_choice').length;
   const tfCount = questions.filter(q => q.type === 'true_false').length;
   const identCount = questions.filter(q => q.type === 'identification').length;
+  
+  const enumCount = questions.filter(q => q.type === 'enumeration').length;
+  const rearrangeCount = questions.filter(q => q.type === 'rearrange').length;
 
   const handleTimeAdjust = (amount) => {
     setTimeValue((prev) => Math.max(1, prev + amount));
@@ -64,25 +68,48 @@ export default function QuizPlayer({ route, navigation }) {
             Question Breakdown
           </Text>
           
-          <View className="flex-row items-center mb-3">
-            <ListBulletIcon color={isDark ? "#818cf8" : "#4f46e5"} size={20} />
-            <Text className={`font-medium ml-3 flex-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Multiple Choice</Text>
-            <Text className={`font-bold px-3 py-1 rounded-full ${isDark ? 'text-indigo-300 bg-indigo-900/40' : 'text-indigo-600 bg-indigo-50'}`}>{mcqCount}</Text>
-          </View>
+          {mcqCount > 0 && (
+            <View className="flex-row items-center mb-3">
+              <ListBulletIcon color={isDark ? "#818cf8" : "#4f46e5"} size={20} />
+              <Text className={`font-medium ml-3 flex-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Multiple Choice</Text>
+              <Text className={`font-bold px-3 py-1 rounded-full ${isDark ? 'text-indigo-300 bg-indigo-900/40' : 'text-indigo-600 bg-indigo-50'}`}>{mcqCount}</Text>
+            </View>
+          )}
 
-          <View className="flex-row items-center mb-3">
-            <CheckCircleIcon color={isDark ? "#4ade80" : "#16a34a"} size={20} />
-            <Text className={`font-medium ml-3 flex-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>True / False</Text>
-            <Text className={`font-bold px-3 py-1 rounded-full ${isDark ? 'text-green-300 bg-green-900/40' : 'text-green-600 bg-green-50'}`}>{tfCount}</Text>
-          </View>
+          {tfCount > 0 && (
+            <View className="flex-row items-center mb-3">
+              <CheckCircleIcon color={isDark ? "#4ade80" : "#16a34a"} size={20} />
+              <Text className={`font-medium ml-3 flex-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>True / False</Text>
+              <Text className={`font-bold px-3 py-1 rounded-full ${isDark ? 'text-green-300 bg-green-900/40' : 'text-green-600 bg-green-50'}`}>{tfCount}</Text>
+            </View>
+          )}
 
-          <View className="flex-row items-center mb-4">
-            <PencilSquareIcon color={isDark ? "#fb923c" : "#ea580c"} size={20} />
-            <Text className={`font-medium ml-3 flex-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Identification</Text>
-            <Text className={`font-bold px-3 py-1 rounded-full ${isDark ? 'text-orange-300 bg-orange-900/40' : 'text-orange-600 bg-orange-50'}`}>{identCount}</Text>
-          </View>
+          {identCount > 0 && (
+            <View className="flex-row items-center mb-3">
+              <PencilSquareIcon color={isDark ? "#fb923c" : "#ea580c"} size={20} />
+              <Text className={`font-medium ml-3 flex-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Identification</Text>
+              <Text className={`font-bold px-3 py-1 rounded-full ${isDark ? 'text-orange-300 bg-orange-900/40' : 'text-orange-600 bg-orange-50'}`}>{identCount}</Text>
+            </View>
+          )}
 
-          <View className={`h-[1px] mb-4 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`} />
+          {/* 🚨 FIXED ENUMERATION ICON HERE */}
+          {enumCount > 0 && (
+            <View className="flex-row items-center mb-3">
+              <QueueListIcon color={isDark ? "#f472b6" : "#db2777"} size={20} />
+              <Text className={`font-medium ml-3 flex-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Enumeration</Text>
+              <Text className={`font-bold px-3 py-1 rounded-full ${isDark ? 'text-pink-300 bg-pink-900/40' : 'text-pink-600 bg-pink-50'}`}>{enumCount}</Text>
+            </View>
+          )}
+
+          {rearrangeCount > 0 && (
+            <View className="flex-row items-center mb-3">
+              <ArrowsUpDownIcon color={isDark ? "#38bdf8" : "#0284c7"} size={20} />
+              <Text className={`font-medium ml-3 flex-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Re-arrange</Text>
+              <Text className={`font-bold px-3 py-1 rounded-full ${isDark ? 'text-sky-300 bg-sky-900/40' : 'text-sky-600 bg-sky-50'}`}>{rearrangeCount}</Text>
+            </View>
+          )}
+
+          <View className={`h-[1px] my-3 ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`} />
           
           <View className="flex-row justify-between items-center">
             <Text className={`font-bold ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>Total Questions</Text>
@@ -96,7 +123,6 @@ export default function QuizPlayer({ route, navigation }) {
             <Cog6ToothIcon color={isDark ? "#9ca3af" : "#6b7280"} size={24} />
           </View>
 
-          {/* Shuffle Toggle */}
           <View className={`flex-row justify-between items-center mb-4 border-b pb-4 ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
             <View className="flex-1 pr-4">
               <Text className={`font-bold ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>Shuffle Questions</Text>
@@ -110,7 +136,6 @@ export default function QuizPlayer({ route, navigation }) {
             />
           </View>
 
-          {/* Immediate Feedback Toggle */}
           <View className={`flex-row justify-between items-center mb-4 border-b pb-4 ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
             <View className="flex-1 pr-4">
               <Text className={`font-bold ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>Show Mistakes</Text>
@@ -124,7 +149,6 @@ export default function QuizPlayer({ route, navigation }) {
             />
           </View>
 
-          {/* Auto-Speak Toggle */}
           <View className="flex-row justify-between items-center">
             <View className="flex-1 pr-4">
               <Text className={`font-bold flex-row items-center ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>

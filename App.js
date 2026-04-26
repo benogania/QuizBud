@@ -4,7 +4,7 @@ import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as NavigationBar from 'expo-navigation-bar';
 import * as SystemUI from 'expo-system-ui'; 
-import { useQuizStore } from './src/store/useQuizStore'; 
+import { useQuizStore } from './src/store/useQuizStore';
 
 import TabNavigator from './src/navigation/TabNavigator';
 import QuizPlayer from './src/screens/QuizPlayer'; 

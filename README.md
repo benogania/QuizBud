@@ -6,7 +6,7 @@
 
 ## 🚀 Experience QuizBud
 
-Ready to test your knowledge? Download the latest Android release below:
+Ready to test your knowledge? Download the latest Android release below Click to download:
 
 [![Download APK](https://img.shields.io/badge/Download-Android_APK-4f46e5?style=for-the-badge&logo=android&logoColor=white)](https://expo.dev/artifacts/eas/dpvxSFAkF69CrTSNTxZKSa.apk)
 

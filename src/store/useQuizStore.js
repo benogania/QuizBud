@@ -56,7 +56,7 @@ export const useQuizStore = create(
       toggleHaptics: () =>
         set((state) => ({ hapticsEnabled: !state.hapticsEnabled })),
 
-      theme: "dark",
+      theme: "light",
 
       // Bulletproof theme setter
       setTheme: (newTheme) => set({ theme: newTheme }),
@@ -157,7 +157,8 @@ export const useQuizStore = create(
           }),
         })),
 
-      //The Modified update quiz
+      //The Modified update quiz 
+      
       updateQuiz: (id, updatedQuizData) =>
         set((state) => ({
           quizzes: state.quizzes.map((item) => {

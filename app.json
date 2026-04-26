@@ -8,7 +8,7 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "backgroundColor": "#0f172a",
+      "backgroundColor": "#01439d",
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain"
     },
@@ -31,7 +31,7 @@
       },
       "permissions": [
         "NOTIFICATIONS",
-        "SCHEDULE_EXACT_ALARM", 
+        "SCHEDULE_EXACT_ALARM",
         "USE_EXACT_ALARM",
         "VIBRATE"
       ]
@@ -41,9 +41,8 @@
     },
     "extra": {
       "eas": {
-        "projectId": "da75b28e-6567-494f-a786-28c1fe8a1ba6"
+        "projectId": "1e84cc08-7e56-4ace-914a-55250ba69a7a"
       }
-    },
-    "owner": "ben190"
+    }
   }
 }

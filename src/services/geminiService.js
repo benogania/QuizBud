@@ -105,17 +105,23 @@ export const askAIAssistant = (chatHistory, newMessage, fileData = null) => {
   return callGeminiWithFallback(prompt, false, fileData);
 };
 
-export const generateDailyChallenge = async () => {
+export const generateDailyChallenge = async (pastQuestions = []) => {
+  // Tell Gemini to strictly avoid recent questions if we have them
+  const avoidPrompt = pastQuestions.length > 0 
+    ? `\nCRITICAL: DO NOT repeat any of these exact questions or highly similar topics:\n${pastQuestions.map((q, i) => `${i+1}. ${q}`).join('\n')}` 
+    : '';
+
   const prompt = `
     ACT AS A TRIVIA MASTER. 
     GENERATE A 10-QUESTION GENERAL KNOWLEDGE QUIZ.
+    ${avoidPrompt}
     
     YOU MUST RETURN ONLY A JSON OBJECT WITH THIS EXACT STRUCTURE:
     {
-      "title": "Daily Trivia: [Insert Topic]",
+      "title": "Daily Trivia: General Knowledge",
       "subject": "General Knowledge",
       "emoji": "🌟",
-      "description": "Challenge your brain with today's 5 random questions!",
+      "description": "Challenge your brain with today's 10 fresh questions!",
       "questions": [
         {
           "id": "q1",
@@ -129,10 +135,11 @@ export const generateDailyChallenge = async () => {
     }
     
     RULES:
-    1. Ensure there are exactly 5 questions.
+    1. Ensure there are exactly 10 questions.
     2. correctAnswerIndex must be a number from 0 to 3.
     3. Do not include any text outside of the JSON object.
   `;
+
   return await callGeminiWithFallback(prompt, true);
 };
 

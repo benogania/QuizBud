@@ -40,6 +40,7 @@ import {
   FireIcon,
   StarIcon as StarSolid,
   PlusCircleIcon,
+  KeyIcon // <-- NEW: Imported for the API Modal
 } from "react-native-heroicons/solid";
 
 const ICON_MAP = {
@@ -71,6 +72,7 @@ export default function LibraryScreen() {
     dailyChallenge, lastDailyFetch, setDailyChallenge,
     collections = [], createCollection, editCollection, deleteCollection,
     updateCollectionIcon, addQuizzesToCollection, hapticsEnabled,
+    geminiApiKeys = []
   } = useQuizStore();
 
   const recentHistory = quizHistory.slice(0, 3);
@@ -91,6 +93,10 @@ export default function LibraryScreen() {
 
   const [isGeneratingDaily, setIsGeneratingDaily] = useState(false);
   const [successConfig, setSuccessConfig] = useState({ visible: false, title: "", message: "" });
+  
+  // 🚨 NEW: State for API Key Modal
+  const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
+
   const [isFolderModalVisible, setIsFolderModalVisible] = useState(false);
   const [isFolderActionModalVisible, setIsFolderActionModalVisible] = useState(false);
   const [isIconPickerVisible, setIsIconPickerVisible] = useState(false);
@@ -99,19 +105,28 @@ export default function LibraryScreen() {
   const [isGridView, setIsGridView] = useState(false);
   const [isPasteModalVisible, setIsPasteModalVisible] = useState(false);
   const [pastedJSON, setPastedJSON] = useState("");
+const handlePlayDailyChallenge = async () => {
+    // 🚨 CHECK IF ARRAY IS EMPTY
+    if (geminiApiKeys.length === 0 || !geminiApiKeys[0].trim()) {
+      triggerHaptic(hapticsEnabled, "Warning");
+      setIsApiKeyModalVisible(true);
+      return;
+    }
 
-  const handlePlayDailyChallenge = async () => {
     const today = new Date().toDateString();
     if (dailyChallenge && lastDailyFetch === today) {
       navigation.navigate("QuizPlayer", { quiz: dailyChallenge });
       return;
     }
+    
     setIsGeneratingDaily(true);
     try {
       const pastDailyQuizzes = quizHistory.filter((q) => q.quizTitle && q.quizTitle.includes("Daily Trivia"));
       const pastQuestions = pastDailyQuizzes.flatMap((q) => (q.history || []).map((h) => h.question)).slice(0, 50);
 
-      const dailyQuiz = await generateDailyChallenge(pastQuestions);
+      
+      const dailyQuiz = await generateDailyChallenge(pastQuestions, geminiApiKeys[0]);
+    
       if (!dailyQuiz || !dailyQuiz.questions) throw new Error("Invalid AI Response");
       const finalQuiz = { ...dailyQuiz, id: `daily-${Date.now()}` };
       if (setDailyChallenge) setDailyChallenge(finalQuiz);
@@ -123,7 +138,6 @@ export default function LibraryScreen() {
     }
   };
 
-  // --- 🚨 NEW: SAMPLE STARTER PACK INJECTION ---
   const loadSampleStarterPack = () => {
     const timeKey = Date.now();
     const q1Id = `sample-q1-${timeKey}`;
@@ -197,7 +211,6 @@ export default function LibraryScreen() {
     triggerHaptic(hapticsEnabled, 'Heavy');
     setSuccessConfig({ visible: true, title: "Starter Pack Loaded", message: "4 sample quizzes and custom collections have been added to your library!" });
   };
-  // --------------------------------------------------
 
   const handleSaveFolder = () => {
     if (!folderNameInput.trim()) return;
@@ -356,23 +369,12 @@ export default function LibraryScreen() {
 
   return (
     <View className={`flex-1 ${isDark ? "bg-[#0f172a]" : "bg-[#f5f5fa]"}`}>
-      <Image
-        source={require('../../assets/gradient.png')}
-        blurRadius={90}
-        className={`absolute z-0 top-[-10%] left-0 h-[500px] w-[500px] ${isDark ? "opacity-30" : "opacity-40"}`}
-        style={{ height: 500, width: 500, tintColor: isDark ? "#4f46e5" : "#818cf8" }}
-      />
-      <Image
-        source={require('../../assets/purple-gradient.png')}
-        blurRadius={90}
-        className={`absolute z-0 top-[-35%] left-[-50%] h-[500px] w-[500px] ${isDark ? "opacity-30" : "opacity-60"}`}
-        style={{ height: 500, width: 500, tintColor: isDark ? "#4f46e5" : "#818cf8" }}
-      />
+      <Image source={require('../../assets/gradient.png')} blurRadius={90} className={`absolute z-0 top-[-10%] left-0 h-[500px] w-[500px] ${isDark ? "opacity-30" : "opacity-40"}`} style={{ height: 500, width: 500, tintColor: isDark ? "#4f46e5" : "#818cf8" }} />
+      <Image source={require('../../assets/purple-gradient.png')} blurRadius={90} className={`absolute z-0 top-[-35%] left-[-50%] h-[500px] w-[500px] ${isDark ? "opacity-30" : "opacity-60"}`} style={{ height: 500, width: 500, tintColor: isDark ? "#4f46e5" : "#818cf8" }} />
 
       <View className="flex-1 bg-transparent" style={{ paddingTop: insets.top }}>
         <ScrollView className="flex-1 px-5 pt-4" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
           
-          {/* Header */}
           <View className="flex-row justify-between items-center mb-6">
             <View className="flex-row items-center">
               <AcademicCapIcon color={isDark ? "#a5b4fc" : "#312e81"} size={30} />
@@ -383,7 +385,6 @@ export default function LibraryScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Daily Pick Card */}
           <TouchableOpacity onPress={handlePlayDailyChallenge} disabled={isGeneratingDaily} className="rounded-[32px] overflow-hidden mb-8 shadow-lg shadow-indigo-300">
             <LinearGradient colors={isDark ? ["#312e81", "#1e1b4b"] : ["#4f46e5", "#3730a3"]} className="p-6 relative">
               <View className="absolute top-4 right-4 bg-white/20 p-2 rounded-full"><FireIcon color="#fbbf24" size={24} /></View>
@@ -401,7 +402,6 @@ export default function LibraryScreen() {
             <Text className={`text-3xl font-extrabold mb-2 leading-tight ${isDark ? "text-white" : "text-gray-900"}`}>Manage Your{"\n"}Quizzes</Text>
             <Text className={`text-sm mb-6 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Organize, refine, and track insights for your personalized study collection.</Text>
 
-            {/* 🚨 NEW: EMPTY STATE BANNER */}
             {quizzes.length === 0 && (
               <View className={`rounded-[32px] p-6 mb-8 border-2 border-dashed ${isDark ? 'bg-indigo-900/20 border-indigo-700' : 'bg-indigo-50 border-indigo-200'}`}>
                 <View className="flex-row items-center mb-3">
@@ -520,27 +520,18 @@ export default function LibraryScreen() {
               })}
             </View>
 
-            {/* --- UPGRADED IMPORT SECTION --- */}
             <View className={`border-2 border-dashed rounded-[40px] p-6 pb-8 items-center mt-6 mb-10 relative ${isDark ? "bg-indigo-900/10 border-indigo-800" : "bg-[#f4f2ff] border-indigo-200"}`}>
-              <TouchableOpacity 
-                className={`absolute top-4 right-4 p-2 rounded-full ${isDark ? 'bg-gray-800' : 'bg-white shadow-sm'}`}
-                onPress={() => navigation.navigate("AIPromptGuideScreen")}
-              >
+              <TouchableOpacity className={`absolute top-4 right-4 p-2 rounded-full ${isDark ? 'bg-gray-800' : 'bg-white shadow-sm'}`} onPress={() => navigation.navigate("AIPromptGuideScreen")}>
                  <QuestionMarkCircleIcon color={isDark ? "#818cf8" : "#4f46e5"} size={22} />
               </TouchableOpacity>
-
-              <View className="bg-indigo-600 p-3 rounded-xl mb-4 mt-2">
-                <DocumentArrowUpIcon color="white" size={28} />
-              </View>
+              <View className="bg-indigo-600 p-3 rounded-xl mb-4 mt-2"><DocumentArrowUpIcon color="white" size={28} /></View>
               <Text className={`text-xl font-extrabold mb-2 text-center ${isDark ? "text-white" : "text-gray-900"}`}>Import Local Quiz</Text>
               <Text className={`text-sm mb-6 text-center leading-5 px-4 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Upload an existing quiz file (.qb or JSON) or paste code directly.</Text>
-
               <View className="flex-row space-x-3 w-full px-2">
                 <TouchableOpacity className={`flex-1 rounded-full py-4 flex-row items-center justify-center shadow-sm border ${isDark ? "bg-gray-800 border-gray-700" : "bg-white border-indigo-100 shadow-indigo-100"}`} onPress={handleImport}>
                   <DocumentTextIcon color={isDark ? "#a5b4fc" : "#1e3a8a"} size={18} />
                   <Text className={`font-bold text-sm ml-2 ${isDark ? "text-indigo-200" : "text-blue-900"}`}>File</Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity className={`flex-1 rounded-full py-4 flex-row items-center justify-center shadow-sm border ${isDark ? "bg-indigo-600 border-indigo-500" : "bg-indigo-600 border-indigo-500 shadow-indigo-200"}`} onPress={() => setIsPasteModalVisible(true)}>
                   <ClipboardDocumentListIcon color="white" size={18} />
                   <Text className="font-bold text-sm ml-2 text-white">Paste</Text>
@@ -552,6 +543,44 @@ export default function LibraryScreen() {
           <View className="h-10" />
         </ScrollView>
       </View>
+
+      {/* 🚨 NEW: API KEY MISSING MODAL */}
+      <Modal animationType="fade" transparent={true} visible={isApiKeyModalVisible} onRequestClose={() => setIsApiKeyModalVisible(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }}>
+          <View className={`w-10/12 rounded-[40px] p-8 items-center shadow-2xl ${isDark ? "bg-gray-900" : "bg-white"}`}>
+            
+            <View className={`w-20 h-20 rounded-full items-center justify-center mb-6 ${isDark ? 'bg-amber-900/40' : 'bg-amber-100'}`}>
+              <KeyIcon color={isDark ? "#fbbf24" : "#d97706"} size={40} />
+            </View>
+            
+            <Text className={`text-2xl font-extrabold mb-3 text-center ${isDark ? "text-white" : "text-gray-900"}`}>API Key Required</Text>
+            
+            <Text className={`text-base text-center mb-8 px-2 leading-6 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+              To generate AI quizzes and play the Daily Challenge, you need to add your free Gemini API key in the app settings.
+            </Text>
+            
+            <View className="w-full space-y-3">
+              <TouchableOpacity 
+                className="bg-indigo-600 w-full py-4 rounded-full shadow-md" 
+                onPress={() => {
+                  setIsApiKeyModalVisible(false);
+                  navigation.navigate("Settings"); // Adjust this route name if your settings screen is named differently!
+                }}
+              >
+                <Text className="text-white text-center font-bold text-lg">Go to Settings</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                className="w-full py-4 rounded-full" 
+                onPress={() => setIsApiKeyModalVisible(false)}
+              >
+                <Text className={`text-center font-bold text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Maybe Later</Text>
+              </TouchableOpacity>
+            </View>
+
+          </View>
+        </View>
+      </Modal>
 
       {/* PASTE MODAL */}
       <Modal animationType="slide" transparent={true} visible={isPasteModalVisible} onRequestClose={() => setIsPasteModalVisible(false)}>

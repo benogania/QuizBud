@@ -26,6 +26,7 @@ import SpeakingScreen from './src/screens/SpeakingScreen';
 import AllCollectionsScreen from './src/screens/AllCollectionsScreen';
 import RecentActivityScreen from './src/screens/RecentActivityScreen';
 import AIPromptGuideScreen from './src/screens/AIPromptGuideScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 
 // SplashScreen.preventAutoHideAsync();
 const Stack = createNativeStackNavigator();
@@ -97,6 +98,7 @@ export default function App() {
         <Stack.Screen name="AllCollectionsScreen" component={AllCollectionsScreen} />
         <Stack.Screen name="RecentActivityScreen" component={RecentActivityScreen} />
         <Stack.Screen name="AIPromptGuideScreen" component={AIPromptGuideScreen} />
+        <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
 
         <Stack.Screen name="Flashcards" component={FlashcardScreen} />
         <Stack.Screen name="TimeAttack" component={TimeAttackScreen} />

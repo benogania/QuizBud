@@ -19,7 +19,7 @@ import {
   DocumentIcon,
   QueueListIcon,       
   ArrowsUpDownIcon,    
-  PlusCircleIcon       
+  PlusCircleIcon      
 } from 'react-native-heroicons/outline';
 import { SparklesIcon, XMarkIcon, CheckIcon as CheckIconSolid } from 'react-native-heroicons/solid';
 
@@ -64,6 +64,21 @@ export default function CreateQuizScreen() {
 
   // --- LOGIC: AI GENERATION ---
   const handleAIGenerate = async () => {
+    // 🚨 CHECK IF ARRAY IS EMPTY FIRST
+    const apiKeys = useQuizStore.getState().geminiApiKeys || [];
+    if (apiKeys.length === 0 || !apiKeys[0].trim()) {
+      setIsAIModalVisible(false); 
+      Alert.alert(
+        "API Key Required",
+        "To generate AI quizzes, you need to add your free Gemini API key in the app settings.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Go to Settings", onPress: () => navigation.navigate("SettingsScreen") } 
+        ]
+      );
+      return;
+    }
+
     if (!aiTopic.trim() && !selectedFile) {
       Alert.alert("Hold up", "Please enter a topic or upload a study document.");
       return;

@@ -16,9 +16,12 @@ import {
   PencilSquareIcon,
   BookOpenIcon,
   DocumentPlusIcon, 
-  DocumentIcon
+  DocumentIcon,
+  QueueListIcon,       
+  ArrowsUpDownIcon,    
+  PlusCircleIcon       
 } from 'react-native-heroicons/outline';
-import { SparklesIcon, XMarkIcon, CheckIcon as CheckIconSolid } from 'react-native-heroicons/solid'; // Added CheckIconSolid for the modal
+import { SparklesIcon, XMarkIcon, CheckIcon as CheckIconSolid } from 'react-native-heroicons/solid';
 
 export default function CreateQuizScreen() {
   const navigation = useNavigation();
@@ -38,7 +41,7 @@ export default function CreateQuizScreen() {
   
   // --- FILE & NUMBER STATE ---
   const [selectedFile, setSelectedFile] = useState(null);
-  const [numQuestions, setNumQuestions] = useState(5);
+  const [numQuestions, setNumQuestions] = useState('5'); // Changed to string for the text input
 
   // --- CUSTOM SUCCESS MODAL STATE ---
   const [isSuccessVisible, setIsSuccessVisible] = useState(false);
@@ -66,6 +69,12 @@ export default function CreateQuizScreen() {
       return;
     }
 
+    const parsedNum = parseInt(numQuestions, 10);
+    if (isNaN(parsedNum) || parsedNum <= 0) {
+      Alert.alert("Invalid Number", "Please enter a valid number of questions.");
+      return;
+    }
+
     setIsGenerating(true);
     try {
       let fileData = null;
@@ -80,7 +89,8 @@ export default function CreateQuizScreen() {
         };
       }
 
-      const generatedData = await generateQuizWithAI(aiTopic, numQuestions, fileData);
+      // Pass the parsed number to the AI service
+      const generatedData = await generateQuizWithAI(aiTopic, parsedNum, fileData);
       
       setTitle(generatedData.title || '');
       setSubject(generatedData.subject || '');
@@ -89,7 +99,8 @@ export default function CreateQuizScreen() {
       const formattedQuestions = generatedData.questions.map((q, idx) => ({
         ...q,
         id: Date.now().toString() + idx, 
-        type: 'multiple_choice', 
+        // Fallback type if AI forgets
+        type: q.type || 'multiple_choice', 
       }));
       
       setQuestions(formattedQuestions);
@@ -107,9 +118,27 @@ export default function CreateQuizScreen() {
   // --- LOGIC: MANAGE QUESTIONS ---
   const addNewQuestion = (type) => {
     const newQ = { id: Date.now().toString(), type: type, question: '', points: 1 };
-    if (type === 'multiple_choice') { newQ.options = ['', '', '', '']; newQ.correctAnswerIndex = 0; } 
-    else if (type === 'true_false') { newQ.options = ['True', 'False']; newQ.correctAnswerIndex = 0; } 
-    else { newQ.correctAnswer = ''; }
+    
+    if (type === 'multiple_choice') { 
+      newQ.options = ['', '', '', '']; 
+      newQ.correctAnswerIndex = 0; 
+    } 
+    else if (type === 'true_false') { 
+      newQ.options = ['True', 'False']; 
+      newQ.correctAnswerIndex = 0; 
+    } 
+    else if (type === 'identification') { 
+      newQ.correctAnswer = ''; 
+    }
+    // New Types Initialization
+    else if (type === 'enumeration') {
+      newQ.correctAnswers = ['', ''];
+      newQ.exactOrder = false;
+    }
+    else if (type === 'rearrange') {
+      newQ.correctOrder = ['', ''];
+    }
+    
     setQuestions([...questions, newQ]);
   };
 
@@ -131,6 +160,31 @@ export default function CreateQuizScreen() {
     setQuestions(updated);
   };
 
+  // Logic for dynamic arrays (Enumeration / Rearrange)
+  const handleUpdateArrayItem = (text, qIndex, itemIndex, fieldKey) => {
+    const updated = [...questions];
+    updated[qIndex][fieldKey][itemIndex] = text;
+    setQuestions(updated);
+  };
+
+  const handleAddArrayItem = (qIndex, fieldKey) => {
+    const updated = [...questions];
+    updated[qIndex][fieldKey].push('');
+    setQuestions(updated);
+  };
+
+  const handleRemoveArrayItem = (qIndex, itemIndex, fieldKey) => {
+    const updated = [...questions];
+    updated[qIndex][fieldKey].splice(itemIndex, 1);
+    setQuestions(updated);
+  };
+
+  const handleToggleExactOrder = (qIndex) => {
+    const updated = [...questions];
+    updated[qIndex].exactOrder = !updated[qIndex].exactOrder;
+    setQuestions(updated);
+  };
+
   const deleteQuestion = (index) => {
     const updated = questions.filter((_, i) => i !== index);
     setQuestions(updated);
@@ -138,7 +192,6 @@ export default function CreateQuizScreen() {
 
   // --- LOGIC: SAVE QUIZ ---
   const handleSave = () => {
-    // Keep error alerts as quick popups
     if (!title.trim()) return Alert.alert("Error", "Quiz title is required!");
     if (!subject.trim()) return Alert.alert("Error", "Please enter a subject!");
     if (questions.length === 0) return Alert.alert("Error", "Please add at least one question!");
@@ -153,8 +206,6 @@ export default function CreateQuizScreen() {
     };
 
     addQuiz(newQuiz);
-    
-    // Trigger custom modal instead of system alert
     setIsSuccessVisible(true);
   };
 
@@ -252,6 +303,7 @@ export default function CreateQuizScreen() {
               multiline
             />
 
+            {/* MULTIPLE CHOICE & TRUE FALSE */}
             {(q.type === 'multiple_choice' || q.type === 'true_false') && (
               <View>
                 {q.options.map((opt, optIdx) => (
@@ -279,6 +331,7 @@ export default function CreateQuizScreen() {
               </View>
             )}
 
+            {/* IDENTIFICATION */}
             {q.type === 'identification' && (
               <TextInput
                 className={`rounded-xl p-3 border font-bold ${isDark ? 'bg-indigo-900/30 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-100 text-indigo-900'}`}
@@ -288,26 +341,105 @@ export default function CreateQuizScreen() {
                 placeholderTextColor={isDark ? "#3730a3" : "#818cf8"}
               />
             )}
+
+            {/* ENUMERATION */}
+            {q.type === 'enumeration' && (
+              <View>
+                <TouchableOpacity 
+                  onPress={() => handleToggleExactOrder(index)}
+                  className="flex-row items-center mb-3 ml-1"
+                >
+                  <View className={`w-5 h-5 rounded border items-center justify-center mr-2 ${q.exactOrder ? 'bg-indigo-500 border-indigo-500' : (isDark ? 'border-gray-600 bg-gray-800' : 'border-gray-300 bg-white')}`}>
+                    {q.exactOrder && <CheckIconSolid color="white" size={14} />}
+                  </View>
+                  <Text className={`text-xs font-bold ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Require Exact Order</Text>
+                </TouchableOpacity>
+
+                {q.correctAnswers?.map((ans, aIdx) => (
+                  <View key={aIdx} className="flex-row items-center mb-2">
+                    <Text className={`font-bold mr-2 w-4 text-right ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{aIdx + 1}.</Text>
+                    <TextInput
+                      className={`flex-1 rounded-lg px-3 py-2 border ${isDark ? 'bg-gray-900 border-gray-700 text-gray-200' : 'bg-gray-50 border-gray-100 text-gray-700'}`}
+                      value={ans}
+                      onChangeText={(text) => handleUpdateArrayItem(text, index, aIdx, 'correctAnswers')}
+                      placeholder={`Answer ${aIdx + 1}`}
+                      placeholderTextColor={isDark ? "#4b5563" : "#9ca3af"}
+                    />
+                    <TouchableOpacity onPress={() => handleRemoveArrayItem(index, aIdx, 'correctAnswers')} className="p-2">
+                      <XMarkIcon color="#ef4444" size={20} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                <TouchableOpacity 
+                  onPress={() => handleAddArrayItem(index, 'correctAnswers')}
+                  className={`mt-2 flex-row items-center justify-center py-2 rounded-lg border border-dashed ${isDark ? 'border-gray-600 bg-gray-800/50' : 'border-gray-300 bg-gray-50'}`}
+                >
+                  <PlusCircleIcon color={isDark ? "#9ca3af" : "#6b7280"} size={18} />
+                  <Text className={`font-bold ml-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Add Item</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* REARRANGE */}
+            {q.type === 'rearrange' && (
+              <View>
+                <Text className={`text-xs font-bold mb-2 ml-1 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`}>Define the Correct Order:</Text>
+                {q.correctOrder?.map((item, oIdx) => (
+                  <View key={oIdx} className="flex-row items-center mb-2">
+                    <Text className={`font-bold mr-2 w-4 text-right ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{oIdx + 1}.</Text>
+                    <TextInput
+                      className={`flex-1 rounded-lg px-3 py-2 border ${isDark ? 'bg-gray-900 border-gray-700 text-gray-200' : 'bg-gray-50 border-gray-100 text-gray-700'}`}
+                      value={item}
+                      onChangeText={(text) => handleUpdateArrayItem(text, index, oIdx, 'correctOrder')}
+                      placeholder={`Step ${oIdx + 1}`}
+                      placeholderTextColor={isDark ? "#4b5563" : "#9ca3af"}
+                    />
+                    <TouchableOpacity onPress={() => handleRemoveArrayItem(index, oIdx, 'correctOrder')} className="p-2">
+                      <XMarkIcon color="#ef4444" size={20} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                <TouchableOpacity 
+                  onPress={() => handleAddArrayItem(index, 'correctOrder')}
+                  className={`mt-2 flex-row items-center justify-center py-2 rounded-lg border border-dashed ${isDark ? 'border-gray-600 bg-gray-800/50' : 'border-gray-300 bg-gray-50'}`}
+                >
+                  <PlusCircleIcon color={isDark ? "#9ca3af" : "#6b7280"} size={18} />
+                  <Text className={`font-bold ml-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Add Step</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         ))}
 
         {/* MANUAL ADD QUESTION SECTION */}
         <View className={`p-6 rounded-[40px] mt-4 shadow-lg ${isDark ? 'bg-indigo-950' : 'bg-indigo-900 shadow-indigo-300'}`}>
           <Text className="text-white font-bold text-lg mb-4 text-center">Add Question Manually</Text>
-          <View className="flex-row justify-between">
-            <TouchableOpacity onPress={() => addNewQuestion('multiple_choice')} className={`items-center p-3 rounded-2xl w-[30%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
+          
+          <View className="flex-row flex-wrap justify-between gap-y-3">
+            <TouchableOpacity onPress={() => addNewQuestion('multiple_choice')} className={`items-center p-3 rounded-2xl w-[31%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
               <ListBulletIcon color="white" size={24} />
               <Text className="text-white text-[10px] font-bold mt-1">MCQ</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity onPress={() => addNewQuestion('true_false')} className={`items-center p-3 rounded-2xl w-[30%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
+            <TouchableOpacity onPress={() => addNewQuestion('true_false')} className={`items-center p-3 rounded-2xl w-[31%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
               <CheckCircleIcon color="white" size={24} />
               <Text className="text-white text-[10px] font-bold mt-1">T / F</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => addNewQuestion('identification')} className={`items-center p-3 rounded-2xl w-[30%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
+            <TouchableOpacity onPress={() => addNewQuestion('identification')} className={`items-center p-3 rounded-2xl w-[31%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
               <PencilSquareIcon color="white" size={24} />
               <Text className="text-white text-[10px] font-bold mt-1">Ident</Text>
+            </TouchableOpacity>
+
+            {/* NEW ADD BUTTONS */}
+            <TouchableOpacity onPress={() => addNewQuestion('enumeration')} className={`items-center p-3 rounded-2xl w-[48%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
+              <QueueListIcon color="white" size={24} />
+              <Text className="text-white text-[10px] font-bold mt-1">Enum</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => addNewQuestion('rearrange')} className={`items-center p-3 rounded-2xl w-[48%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
+              <ArrowsUpDownIcon color="white" size={24} />
+              <Text className="text-white text-[10px] font-bold mt-1">Rearrange</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -386,30 +518,26 @@ export default function CreateQuizScreen() {
                   onChangeText={setAiTopic}
                 />
 
-                {/* Number of Questions */}
+                {/* UPDATED: TextInput for Number of Questions */}
                 <Text className={`font-bold mb-2 ml-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>3. Number of Questions</Text>
-                <View className="flex-row items-center justify-between mb-8 px-4">
-                  <TouchableOpacity 
-                    onPress={() => setNumQuestions(prev => Math.max(1, prev - 1))}
-                    className={`w-12 h-12 rounded-full items-center justify-center ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`}
-                  >
-                    <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>-</Text>
-                  </TouchableOpacity>
-                  
-                  <Text className={`text-3xl font-black ${isDark ? 'text-indigo-400' : 'text-indigo-900'}`}>{numQuestions}</Text>
-                  
-                  <TouchableOpacity 
-                    onPress={() => setNumQuestions(prev => Math.min(20, prev + 1))} // Capped at 20 to avoid timeouts
-                    className={`w-12 h-12 rounded-full items-center justify-center ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`}
-                  >
-                    <Text className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>+</Text>
-                  </TouchableOpacity>
-                </View>
+                <TextInput
+                  className={`rounded-2xl p-4 mb-8 border font-black text-center text-2xl ${isDark ? 'bg-gray-800 border-gray-700 text-indigo-400' : 'bg-gray-50 border-gray-200 text-indigo-900'}`}
+                  keyboardType="numeric"
+                  value={numQuestions}
+                  onChangeText={(text) => {
+                    // Only allow numeric input
+                    const formatted = text.replace(/[^0-9]/g, '');
+                    setNumQuestions(formatted);
+                  }}
+                  placeholder="e.g., 10"
+                  placeholderTextColor={isDark ? "#4b5563" : "#9ca3af"}
+                  maxLength={2} // Keeps it from getting unreasonably large
+                />
                 
                 <TouchableOpacity 
-                  className={`py-4 rounded-full flex-row items-center justify-center ${(aiTopic.trim() || selectedFile) ? 'bg-indigo-600' : 'bg-gray-400'}`}
+                  className={`py-4 rounded-full flex-row items-center justify-center ${(aiTopic.trim() || selectedFile) && numQuestions ? 'bg-indigo-600' : 'bg-gray-400'}`}
                   onPress={handleAIGenerate}
-                  disabled={!aiTopic.trim() && !selectedFile}
+                  disabled={(!aiTopic.trim() && !selectedFile) || !numQuestions}
                 >
                   <Text className="text-white font-bold text-lg mr-2">Generate Quiz</Text>
                   <SparklesIcon color="white" size={20} />

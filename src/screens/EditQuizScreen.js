@@ -12,6 +12,10 @@ import {
   CheckCircleIcon, 
   PencilSquareIcon,
   BookOpenIcon,
+  QueueListIcon,       
+  ArrowsUpDownIcon,   
+  PlusCircleIcon,     
+  XMarkIcon            
 } from 'react-native-heroicons/outline';
 import { SparklesIcon, CheckIcon as CheckIconSolid } from 'react-native-heroicons/solid';
 
@@ -21,14 +25,12 @@ export default function EditQuizScreen() {
   
   const { quiz } = route.params || {};
   
-  // 🚨 ADDED collections & addQuizzesToCollection so we can put the new quiz back in the right folder!
   const { 
     theme, 
     updateQuiz, 
     addQuiz, 
     collections, 
     addQuizzesToCollection, 
-    hapticsEnabled 
   } = useQuizStore(); 
   const isDark = theme === 'dark';
 
@@ -54,19 +56,23 @@ export default function EditQuizScreen() {
     setIsGenerating(true);
     try {
       const simpleQuestions = questions.map(q => ({
+        type: q.type,
         question: q.question,
         options: q.options || q.choices || [],
-        correctAnswer: q.correctAnswer || q.answer || ""
+        correctAnswer: q.correctAnswer || q.answer || "",
+        correctAnswers: q.correctAnswers || [],
+        correctOrder: q.correctOrder || [],
+        exactOrder: q.exactOrder || false
       }));
 
-      const prompt = `You are an expert educator. Please paraphrase and reword the following quiz questions and their options to sound different, but retain the exact same meaning, difficulty, and correct answers. Output ONLY the updated questions in your standard JSON format. Here is the original data: ${JSON.stringify(simpleQuestions)}`;
+      const prompt = `You are an expert educator. Please paraphrase and reword the following quiz questions and their options to sound different, but retain the exact same meaning, difficulty, and correct answers. Keep the original 'type' of each question intact. Output ONLY the updated questions in your standard JSON format. Here is the original data: ${JSON.stringify(simpleQuestions)}`;
 
       const generatedData = await generateQuizWithAI(prompt, questions.length, null);
       
       const formattedQuestions = generatedData.questions.map((q, idx) => ({
         ...q,
         id: Date.now().toString() + idx, 
-        type: 'multiple_choice', 
+        type: q.type || 'multiple_choice', 
       }));
       
       setQuestions(formattedQuestions);
@@ -84,9 +90,26 @@ export default function EditQuizScreen() {
   // --- LOGIC: MANAGE QUESTIONS ---
   const addNewQuestion = (type) => {
     const newQ = { id: Date.now().toString(), type: type, question: '', points: 1 };
-    if (type === 'multiple_choice') { newQ.options = ['', '', '', '']; newQ.correctAnswerIndex = 0; } 
-    else if (type === 'true_false') { newQ.options = ['True', 'False']; newQ.correctAnswerIndex = 0; } 
-    else { newQ.correctAnswer = ''; }
+    
+    if (type === 'multiple_choice') { 
+      newQ.options = ['', '', '', '']; 
+      newQ.correctAnswerIndex = 0; 
+    } 
+    else if (type === 'true_false') { 
+      newQ.options = ['True', 'False']; 
+      newQ.correctAnswerIndex = 0; 
+    } 
+    else if (type === 'identification') { 
+      newQ.correctAnswer = ''; 
+    }
+    else if (type === 'enumeration') {
+      newQ.correctAnswers = ['', ''];
+      newQ.exactOrder = false;
+    }
+    else if (type === 'rearrange') {
+      newQ.correctOrder = ['', ''];
+    }
+    
     setQuestions([...questions, newQ]);
   };
 
@@ -108,6 +131,31 @@ export default function EditQuizScreen() {
     setQuestions(updated);
   };
 
+  // --- ARRAY LOGIC FOR ENUMERATION/REARRANGE ---
+  const handleUpdateArrayItem = (text, qIndex, itemIndex, fieldKey) => {
+    const updated = [...questions];
+    updated[qIndex][fieldKey][itemIndex] = text;
+    setQuestions(updated);
+  };
+
+  const handleAddArrayItem = (qIndex, fieldKey) => {
+    const updated = [...questions];
+    updated[qIndex][fieldKey].push('');
+    setQuestions(updated);
+  };
+
+  const handleRemoveArrayItem = (qIndex, itemIndex, fieldKey) => {
+    const updated = [...questions];
+    updated[qIndex][fieldKey].splice(itemIndex, 1);
+    setQuestions(updated);
+  };
+
+  const handleToggleExactOrder = (qIndex) => {
+    const updated = [...questions];
+    updated[qIndex].exactOrder = !updated[qIndex].exactOrder;
+    setQuestions(updated);
+  };
+
   const deleteQuestion = (index) => {
     const updated = questions.filter((_, i) => i !== index);
     setQuestions(updated);
@@ -119,8 +167,13 @@ export default function EditQuizScreen() {
     if (!subject.trim()) return Alert.alert("Error", "Please enter a subject!");
     if (questions.length === 0) return Alert.alert("Error", "Please add at least one question!");
 
-    // BULLETPROOF DATA STRUCTURE
+    // SMART DATA SANITIZATION
     const sanitizedQuestions = questions.map(q => {
+      // Skip heavy formatting for array-based questions to preserve them properly
+      if (q.type === 'enumeration' || q.type === 'rearrange') {
+        return q; 
+      }
+
       let correct = "";
       let opts = [];
 
@@ -157,22 +210,16 @@ export default function EditQuizScreen() {
     };
 
     if (isAIModified) {
-      // 1. Create the new ID
       const newQuizId = `quiz-${Date.now()}`;
       finalData.id = newQuizId;
-      
-      // 2. Add to library
       addQuiz(finalData);
 
-      // 3. Find every custom folder the original quiz was in, and add this new one to them too!
       collections.forEach(collection => {
         if (collection.quizIds && collection.quizIds.includes(quiz.id)) {
           addQuizzesToCollection(collection.id, [newQuizId]);
         }
       });
-
     } else {
-      // Standard update
       updateQuiz(quiz.id, finalData);
     }
     
@@ -268,6 +315,7 @@ export default function EditQuizScreen() {
                 multiline
               />
 
+              {/* MULTIPLE CHOICE / TRUE FALSE */}
               {((q.type || 'multiple_choice') === 'multiple_choice' || q.type === 'true_false') && (
                 <View>
                   {(q.options || ['', '', '', '']).map((opt, optIdx) => (
@@ -293,6 +341,7 @@ export default function EditQuizScreen() {
                 </View>
               )}
 
+              {/* IDENTIFICATION */}
               {q.type === 'identification' && (
                 <TextInput
                   className={`rounded-xl p-3 border font-bold ${isDark ? 'bg-indigo-900/30 border-indigo-800 text-indigo-300' : 'bg-indigo-50 border-indigo-100 text-indigo-900'}`}
@@ -302,24 +351,105 @@ export default function EditQuizScreen() {
                   placeholderTextColor={isDark ? "#3730a3" : "#818cf8"}
                 />
               )}
+
+              {/* ENUMERATION */}
+              {q.type === 'enumeration' && (
+                <View>
+                  <TouchableOpacity 
+                    onPress={() => handleToggleExactOrder(index)}
+                    className="flex-row items-center mb-3 ml-1"
+                  >
+                    <View className={`w-5 h-5 rounded border items-center justify-center mr-2 ${q.exactOrder ? 'bg-indigo-500 border-indigo-500' : (isDark ? 'border-gray-600 bg-gray-800' : 'border-gray-300 bg-white')}`}>
+                      {q.exactOrder && <CheckIconSolid color="white" size={14} />}
+                    </View>
+                    <Text className={`text-xs font-bold ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Require Exact Order</Text>
+                  </TouchableOpacity>
+
+                  {q.correctAnswers?.map((ans, aIdx) => (
+                    <View key={aIdx} className="flex-row items-center mb-2">
+                      <Text className={`font-bold mr-2 w-4 text-right ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{aIdx + 1}.</Text>
+                      <TextInput
+                        className={`flex-1 rounded-lg px-3 py-2 border ${isDark ? 'bg-gray-900 border-gray-700 text-gray-200' : 'bg-gray-50 border-gray-100 text-gray-700'}`}
+                        value={ans}
+                        onChangeText={(text) => handleUpdateArrayItem(text, index, aIdx, 'correctAnswers')}
+                        placeholder={`Answer ${aIdx + 1}`}
+                        placeholderTextColor={isDark ? "#4b5563" : "#9ca3af"}
+                      />
+                      <TouchableOpacity onPress={() => handleRemoveArrayItem(index, aIdx, 'correctAnswers')} className="p-2">
+                        <XMarkIcon color="#ef4444" size={20} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  <TouchableOpacity 
+                    onPress={() => handleAddArrayItem(index, 'correctAnswers')}
+                    className={`mt-2 flex-row items-center justify-center py-2 rounded-lg border border-dashed ${isDark ? 'border-gray-600 bg-gray-800/50' : 'border-gray-300 bg-gray-50'}`}
+                  >
+                    <PlusCircleIcon color={isDark ? "#9ca3af" : "#6b7280"} size={18} />
+                    <Text className={`font-bold ml-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Add Item</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* REARRANGE */}
+              {q.type === 'rearrange' && (
+                <View>
+                  <Text className={`text-xs font-bold mb-2 ml-1 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`}>Define the Correct Order:</Text>
+                  {q.correctOrder?.map((item, oIdx) => (
+                    <View key={oIdx} className="flex-row items-center mb-2">
+                      <Text className={`font-bold mr-2 w-4 text-right ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{oIdx + 1}.</Text>
+                      <TextInput
+                        className={`flex-1 rounded-lg px-3 py-2 border ${isDark ? 'bg-gray-900 border-gray-700 text-gray-200' : 'bg-gray-50 border-gray-100 text-gray-700'}`}
+                        value={item}
+                        onChangeText={(text) => handleUpdateArrayItem(text, index, oIdx, 'correctOrder')}
+                        placeholder={`Step ${oIdx + 1}`}
+                        placeholderTextColor={isDark ? "#4b5563" : "#9ca3af"}
+                      />
+                      <TouchableOpacity onPress={() => handleRemoveArrayItem(index, oIdx, 'correctOrder')} className="p-2">
+                        <XMarkIcon color="#ef4444" size={20} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  <TouchableOpacity 
+                    onPress={() => handleAddArrayItem(index, 'correctOrder')}
+                    className={`mt-2 flex-row items-center justify-center py-2 rounded-lg border border-dashed ${isDark ? 'border-gray-600 bg-gray-800/50' : 'border-gray-300 bg-gray-50'}`}
+                  >
+                    <PlusCircleIcon color={isDark ? "#9ca3af" : "#6b7280"} size={18} />
+                    <Text className={`font-bold ml-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Add Step</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           );
         })}
 
+        {/* MANUAL ADD QUESTION SECTION */}
         <View className={`p-6 rounded-[40px] mt-4 shadow-lg ${isDark ? 'bg-indigo-950' : 'bg-indigo-900 shadow-indigo-300'}`}>
           <Text className="text-white font-bold text-lg mb-4 text-center">Add Question Manually</Text>
-          <View className="flex-row justify-between">
-            <TouchableOpacity onPress={() => addNewQuestion('multiple_choice')} className={`items-center p-3 rounded-2xl w-[30%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
+          
+          <View className="flex-row flex-wrap justify-between gap-y-3">
+            <TouchableOpacity onPress={() => addNewQuestion('multiple_choice')} className={`items-center p-3 rounded-2xl w-[31%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
               <ListBulletIcon color="white" size={24} />
               <Text className="text-white text-[10px] font-bold mt-1">MCQ</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => addNewQuestion('true_false')} className={`items-center p-3 rounded-2xl w-[30%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
+            
+            <TouchableOpacity onPress={() => addNewQuestion('true_false')} className={`items-center p-3 rounded-2xl w-[31%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
               <CheckCircleIcon color="white" size={24} />
               <Text className="text-white text-[10px] font-bold mt-1">T / F</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => addNewQuestion('identification')} className={`items-center p-3 rounded-2xl w-[30%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
+
+            <TouchableOpacity onPress={() => addNewQuestion('identification')} className={`items-center p-3 rounded-2xl w-[31%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
               <PencilSquareIcon color="white" size={24} />
               <Text className="text-white text-[10px] font-bold mt-1">Ident</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => addNewQuestion('enumeration')} className={`items-center p-3 rounded-2xl w-[48%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
+              <QueueListIcon color="white" size={24} />
+              <Text className="text-white text-[10px] font-bold mt-1">Enum</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => addNewQuestion('rearrange')} className={`items-center p-3 rounded-2xl w-[48%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
+              <ArrowsUpDownIcon color="white" size={24} />
+              <Text className="text-white text-[10px] font-bold mt-1">Rearrange</Text>
             </TouchableOpacity>
           </View>
         </View>

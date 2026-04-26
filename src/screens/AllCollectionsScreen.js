@@ -130,7 +130,7 @@ export default function AllCollectionsScreen() {
             return (
               <TouchableOpacity
                 key={folder.id}
-                className={`flex-row items-center p-4 rounded-3xl mb-3 shadow-sm ${isDark ? "bg-gray-800" : "bg-white"}`}
+                className={`flex-row items-center p-4 rounded-3xl mb-3 border shadow-sm ${isDark ? "bg-gray-800" : "border-slate-200 bg-white"}`}
                 onPress={() => navigation.navigate("CollectionScreen", { id: folder.id, name: folder.name })}
                 onLongPress={() => handleLongPressFolder(folder)}
                 delayLongPress={400}
@@ -194,7 +194,7 @@ export default function AllCollectionsScreen() {
       <Modal animationType="fade" transparent={true} visible={isIconPickerVisible} onRequestClose={() => setIsIconPickerVisible(false)}>
         <TouchableOpacity style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }} activeOpacity={1} onPressOut={() => setIsIconPickerVisible(false)}>
           <TouchableWithoutFeedback>
-            <View className={`w-10/12 rounded-[32px] p-6 shadow-2xl ${isDark ? "bg-gray-900" : "bg-white"}`}>
+            <View className={`w-10/12 rounded-[32px] p-6 shadow-2xl  ${isDark ? "bg-gray-900" : "bg-white" }`}>
               <Text className={`text-xl font-extrabold mb-4 text-center ${isDark ? "text-white" : "text-gray-900"}`}>Choose an Icon</Text>
               <View className="flex-row flex-wrap justify-center gap-3 mt-2">
                 {Object.keys(ICON_MAP).map(iconKey => {

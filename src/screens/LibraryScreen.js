@@ -306,9 +306,7 @@ export default function LibraryScreen() {
     tintColor: isDark ? "#4f46e5" : "#818cf8",
   }}
 />
-      <View
-        className={`h-72 w-72   ${isDark ? "dark:bg-indigo-800" : "bg-orange-400"}  absolute z-0 rounded-full top-[50%] left-[-30%] opacity-5`}
-      ></View>
+      
 
       <View
         className="flex-1 bg-transparent"

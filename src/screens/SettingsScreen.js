@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Switch, Platform, Modal, TextInput, Linking } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,15 +28,17 @@ import {
   ChevronDownIcon,
   KeyIcon,
   PlusIcon,
-  ArrowTopRightOnSquareIcon // <-- Added for the external link icon
+  ArrowTopRightOnSquareIcon
 } from 'react-native-heroicons/outline';
 import { CheckCircleIcon } from 'react-native-heroicons/solid';
 
+// 🚨 CONFIGURE ALARM BEHAVIOR
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
-    shouldSetBadge: false,
+    shouldSetBadge: true,
+    priority: Notifications.AndroidImportance.MAX, 
   }),
 });
 
@@ -81,7 +83,8 @@ export default function SettingsScreen() {
     return `${displayHour}:${displayMinute} ${period}`;
   };
 
-  const scheduleDailyReminder = async (hour24, minute) => {
+  // 🚨 FIXED ALARM LOGIC
+  const scheduleDailyAlarm = async (hour24, minute) => {
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
@@ -89,52 +92,59 @@ export default function SettingsScreen() {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
+      
       if (finalStatus !== 'granted') {
-        showModal({ type: 'danger', title: 'Permission Denied', message: 'Please allow notifications in your phone settings.', confirmText: 'Got it' });
+        showModal({ type: 'danger', title: 'Permission Denied', message: 'Standard notifications are disabled. Please enable them in your phone settings.', confirmText: 'Got it' });
         setRemindersEnabled(false);
         return;
       }
 
       if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('default', {
-          name: 'default',
+        await Notifications.setNotificationChannelAsync('study-alarm', {
+          name: 'Study Alarms',
           importance: Notifications.AndroidImportance.MAX,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#4f46e5',
+          vibrationPattern: [0, 500, 200, 500],
+          lightColor: '#FF231F7C',
+          lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+          sound: 'default', 
         });
       }
 
       await Notifications.cancelAllScheduledNotificationsAsync();
+
+      // 🚨 FIX: ADDED channelId inside the trigger object
       await Notifications.scheduleNotificationAsync({
         content: { 
-          title: "🧠 Time to study!", 
-          body: "Keep your streak alive. Review a quiz today to keep your mind sharp!", 
+          title: "⏰ STUDY ALARM!", 
+          body: "Time to sharpen your mind. Don't break your streak!", 
           sound: true,
-          channelId: 'default' 
+          color: '#4f46e5',
         },
         trigger: { 
-          type: 'calendar', 
-          hour: parseInt(hour24, 10) || 0, 
-          minute: parseInt(minute, 10) || 0, 
-          repeats: true
+          channelId: 'study-alarm', // <-- This fixes the screenshot error!
+          hour: parseInt(hour24, 10), 
+          minute: parseInt(minute, 10), 
+          repeats: true 
         },
       });
 
       setRemindersEnabled(true);
-      const period = hour24 >= 12 ? 'PM' : 'AM';
-      const displayHour = hour24 % 12 || 12;
-      const displayMin = minute.toString().padStart(2, '0');
-
       showModal({
-        type: 'success', title: 'Reminder Set!',
-        message: `You will now receive a daily study reminder at ${displayHour}:${displayMin} ${period}.`,
-        confirmText: 'Awesome'
+        type: 'success', title: 'Alarm Activated!',
+        message: `Your study alarm is now set for ${getFormattedTime()}.`,
+        confirmText: 'Let\'s Study!'
       });
+
     } catch (error) {
       setRemindersEnabled(false); 
+      const isAndroid14Error = error.message.toLowerCase().includes('exact alarm') || error.message.toLowerCase().includes('permission');
+      
       showModal({
-        type: 'danger', title: 'Android Blocked the Alarm',
-        message: `Error: ${error.message}\n\nTo fix this on Android 14+, go to your phone's Settings -> Apps -> QuizBud -> "Alarms & Reminders" and ALLOW it.`,
+        type: 'danger', 
+        title: 'System Blocked Alarm',
+        message: isAndroid14Error 
+          ? "Android requires special permission for exact alarms.\n\nGo to your phone's Settings -> Apps -> QuizBud -> 'Alarms & Reminders' -> Allow."
+          : `Error: ${error.message}`,
         confirmText: 'I understand'
       });
     }
@@ -161,7 +171,7 @@ export default function SettingsScreen() {
     if (tempPeriod === 'PM' && tempHour !== 12) finalHour24 += 12;
     if (tempPeriod === 'AM' && tempHour === 12) finalHour24 = 0;
     setReminderTime({ hour: finalHour24, minute: tempMinute });
-    scheduleDailyReminder(finalHour24, tempMinute);
+    scheduleDailyAlarm(finalHour24, tempMinute); 
   };
 
   const adjustTime = (type, direction) => {
@@ -248,7 +258,6 @@ export default function SettingsScreen() {
     setAiTone(tones[(currentIndex + 1) % tones.length]);
   };
 
-  // --- LOGIC TO OPEN BROWSER FOR API KEY ---
   const handleGetApiKeyLink = () => {
     triggerHaptic(hapticsEnabled, 'Light');
     Linking.openURL('https://aistudio.google.com/app/apikey');
@@ -290,11 +299,17 @@ export default function SettingsScreen() {
           <SettingRow icon={isDark ? MoonIcon : SunIcon} label="Dark Mode" description="Toggle the app's visual theme" rightElement={<Switch value={isDark} onValueChange={toggleTheme} trackColor={{ false: '#d1d5db', true: '#4f46e5' }} thumbColor={'#ffffff'}/>} />
         </View>
 
-        <SectionHeader title="Gameplay & Notifications" />
+        <SectionHeader title="Gameplay & Study Alarm" />
         <View className={`px-4 rounded-3xl ${isDark ? 'bg-gray-900' : 'bg-white shadow-sm'}`}>
           <SettingRow icon={SpeakerWaveIcon} label="Sound Effects" description="Play sounds for correct/wrong answers" rightElement={<Switch value={soundEffects} onValueChange={() => { triggerHaptic(hapticsEnabled); toggleSoundEffects(); }} trackColor={{ false: '#d1d5db', true: '#4f46e5' }} thumbColor={'#ffffff'}/>} />
           <SettingRow icon={DevicePhoneMobileIcon} label="Haptic Feedback" description="Vibrate phone on button presses" rightElement={<Switch value={hapticsEnabled} onValueChange={handleToggleHaptics} trackColor={{ false: '#d1d5db', true: '#4f46e5' }} thumbColor={'#ffffff'}/>} />
-          <SettingRow icon={BellAlertIcon} label="Daily Study Reminder" description={remindersEnabled ? `Active - Reminding you daily at ${getFormattedTime()}` : "Get notified to keep your streak alive"} onPress={remindersEnabled ? () => handleToggleReminders(true) : null} rightElement={<Switch value={remindersEnabled} onValueChange={handleToggleReminders} trackColor={{ false: '#d1d5db', true: '#4f46e5' }} thumbColor={'#ffffff'}/>} />
+          <SettingRow 
+            icon={BellAlertIcon} 
+            label="Daily Study Alarm" 
+            description={remindersEnabled ? `Fires daily at ${getFormattedTime()}` : "Get a high-priority alarm to keep your streak"} 
+            onPress={remindersEnabled ? () => handleToggleReminders(true) : null} 
+            rightElement={<Switch value={remindersEnabled} onValueChange={handleToggleReminders} trackColor={{ false: '#d1d5db', true: '#4f46e5' }} thumbColor={'#ffffff'}/>} 
+          />
         </View>
 
         <SectionHeader title="AI Assistant Preferences" />
@@ -351,7 +366,7 @@ export default function SettingsScreen() {
 
       </ScrollView>
 
-      {/* --- ADD API KEY MODAL --- */}
+      {/* API KEY MODAL */}
       <Modal animationType="fade" transparent={true} visible={isApiKeyModalVisible} onRequestClose={() => setIsApiKeyModalVisible(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }}>
           <View className={`w-10/12 rounded-[32px] p-6 shadow-2xl ${isDark ? "bg-gray-900" : "bg-white"}`}>
@@ -369,7 +384,6 @@ export default function SettingsScreen() {
               className={`p-4 rounded-2xl border mb-3 font-medium text-base ${isDark ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`} 
             />
 
-            {/* 🚨 NEW: LINK TO CREATE API KEY */}
             <TouchableOpacity 
               onPress={handleGetApiKeyLink}
               className="flex-row items-center justify-center mb-6"
@@ -388,7 +402,7 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
-      {/* --- CUSTOM TIME PICKER MODAL --- */}
+      {/* TIME PICKER MODAL */}
       <Modal animationType="slide" transparent={true} visible={isTimePickerVisible} onRequestClose={() => {setIsTimePickerVisible(false); setRemindersEnabled(false);}}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" }}>
           <View className={`rounded-t-[40px] p-8 pb-12 shadow-2xl items-center ${isDark ? "bg-gray-900" : "bg-white"}`}>
@@ -397,11 +411,10 @@ export default function SettingsScreen() {
               <ClockIcon color={isDark ? "#818cf8" : "#4f46e5"} size={32} />
             </View>
             
-            <Text className={`text-2xl font-extrabold mb-2 text-center ${isDark ? "text-white" : "text-gray-900"}`}>Set Reminder Time</Text>
-            <Text className={`text-sm text-center mb-8 px-2 leading-5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>When would you like QuizBud to remind you to study?</Text>
+            <Text className={`text-2xl font-extrabold mb-2 text-center ${isDark ? "text-white" : "text-gray-900"}`}>Set Study Alarm</Text>
+            <Text className={`text-sm text-center mb-8 px-2 leading-5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>This alarm will bypass some system restrictions to ensure you study exactly on time.</Text>
             
             <View className="flex-row items-center justify-center space-x-6 mb-10 w-full px-4">
-              
               <View className="items-center w-20">
                 <TouchableOpacity onPress={() => adjustTime('hour', 1)} className={`p-3 rounded-xl mb-2 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
                   <ChevronUpIcon color={isDark ? "#a5b4fc" : "#4f46e5"} size={24} />
@@ -433,7 +446,6 @@ export default function SettingsScreen() {
                   <Text className={`text-[10px] uppercase font-bold mt-1 ${isDark ? 'text-indigo-400' : 'text-indigo-500'}`}>Tap to flip</Text>
                 </TouchableOpacity>
               </View>
-
             </View>
             
             <View className="flex-row w-full justify-between space-x-3">
@@ -441,19 +453,16 @@ export default function SettingsScreen() {
                 <Text className={`font-bold text-center text-base ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity className="flex-1 py-4 rounded-full shadow-sm bg-indigo-600" onPress={saveTimePicker}>
-                <Text className="text-white font-bold text-center text-base">Save Alarm</Text>
+                <Text className="text-white font-bold text-center text-base">Activate Alarm</Text>
               </TouchableOpacity>
             </View>
-
           </View>
         </View>
       </Modal>
 
-      {/* --- DYNAMIC MODERN UI MODAL --- */}
       <Modal animationType="fade" transparent={true} visible={modalConfig.visible} onRequestClose={closeModal}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }}>
           <View className={`w-10/12 rounded-[32px] p-6 shadow-2xl items-center ${isDark ? "bg-gray-900" : "bg-white"}`}>
-            
             <View className={`w-16 h-16 rounded-full self-center items-center justify-center mb-4 ${
               modalConfig.type === 'danger' ? (isDark ? 'bg-red-900/40' : 'bg-red-100') : 
               modalConfig.type === 'success' ? (isDark ? 'bg-green-900/40' : 'bg-green-100') :
@@ -463,7 +472,6 @@ export default function SettingsScreen() {
               {modalConfig.type === 'success' && <CheckCircleIcon color={isDark ? "#4ade80" : "#22c55e"} size={32} />}
               {modalConfig.type === 'info' && <SparklesIcon color={isDark ? "#818cf8" : "#4f46e5"} size={32} />}
             </View>
-            
             <Text className={`text-xl font-extrabold mb-2 text-center ${isDark ? "text-white" : "text-gray-900"}`}>{modalConfig.title}</Text>
             <Text className={`text-sm text-center mb-8 px-2 leading-5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>{modalConfig.message}</Text>
             
@@ -484,7 +492,6 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }

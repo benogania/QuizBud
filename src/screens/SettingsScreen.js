@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, Platform, Modal, TextInput } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Switch, Platform, Modal, TextInput, Linking } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuizStore } from '../store/useQuizStore';
@@ -27,7 +27,8 @@ import {
   ChevronUpIcon,
   ChevronDownIcon,
   KeyIcon,
-  PlusIcon
+  PlusIcon,
+  ArrowTopRightOnSquareIcon // <-- Added for the external link icon
 } from 'react-native-heroicons/outline';
 import { CheckCircleIcon } from 'react-native-heroicons/solid';
 
@@ -54,7 +55,7 @@ export default function SettingsScreen() {
     importQuizzes,
     remindersEnabled, setRemindersEnabled, 
     reminderTime, setReminderTime,
-    geminiApiKeys = [], addApiKey, removeApiKey // 🚨 Pulled from store!
+    geminiApiKeys = [], addApiKey, removeApiKey 
   } = useQuizStore(); 
   
   const isDark = theme === 'dark';
@@ -247,6 +248,12 @@ export default function SettingsScreen() {
     setAiTone(tones[(currentIndex + 1) % tones.length]);
   };
 
+  // --- LOGIC TO OPEN BROWSER FOR API KEY ---
+  const handleGetApiKeyLink = () => {
+    triggerHaptic(hapticsEnabled, 'Light');
+    Linking.openURL('https://aistudio.google.com/app/apikey');
+  };
+
   const SettingRow = ({ icon: Icon, label, description, rightElement, onPress, isDanger }) => (
     <TouchableOpacity onPress={onPress} disabled={!onPress} className={`flex-row items-center justify-between py-4 border-b ${isDark ? 'border-gray-800' : 'border-gray-100'}`}>
       <View className="flex-row items-center flex-1 pr-4">
@@ -295,7 +302,6 @@ export default function SettingsScreen() {
           <SettingRow icon={SparklesIcon} label="AI Response Tone" description="How Gemini explains concepts to you" onPress={cycleAiTone} rightElement={<View className="flex-row items-center"><Text className={`font-bold mr-2 ${isDark ? 'text-indigo-300' : 'text-indigo-600'}`}>{aiTone || 'Standard'}</Text><ChevronRightIcon color={isDark ? "#6b7280" : "#9ca3af"} size={16} /></View>} />
         </View>
 
-        {/* --- NEW: API CONFIGURATION SECTION --- */}
         <SectionHeader title="AI API Configuration" />
         <View className={`px-4 rounded-3xl pb-2 pt-2 ${isDark ? 'bg-gray-900' : 'bg-white shadow-sm'}`}>
           {geminiApiKeys.length === 0 ? (
@@ -304,7 +310,6 @@ export default function SettingsScreen() {
             </View>
           ) : (
             geminiApiKeys.map((key, index) => {
-              // Mask the key (e.g., AIzaSy...Wxyz)
               const maskedKey = key.length > 10 ? `${key.substring(0, 6)}...${key.substring(key.length - 4)}` : 'Invalid Key Length';
               return (
                 <View key={index} className={`flex-row items-center justify-between py-4 border-b ${isDark ? 'border-gray-800' : 'border-gray-100'}`}>
@@ -361,8 +366,19 @@ export default function SettingsScreen() {
               onChangeText={setNewApiKeyValue} 
               placeholder="AIzaSy..." 
               placeholderTextColor={isDark ? "#6b7280" : "#9ca3af"} 
-              className={`p-4 rounded-2xl border mb-6 font-medium text-base ${isDark ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`} 
+              className={`p-4 rounded-2xl border mb-3 font-medium text-base ${isDark ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`} 
             />
+
+            {/* 🚨 NEW: LINK TO CREATE API KEY */}
+            <TouchableOpacity 
+              onPress={handleGetApiKeyLink}
+              className="flex-row items-center justify-center mb-6"
+            >
+              <Text className={`font-bold mr-1 text-sm ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`}>
+                Get a free API Key
+              </Text>
+              <ArrowTopRightOnSquareIcon color={isDark ? "#818cf8" : "#4f46e5"} size={14} />
+            </TouchableOpacity>
             
             <View className="flex-row justify-end items-center">
               <TouchableOpacity className="px-5 py-3 rounded-full mr-2" onPress={() => setIsApiKeyModalVisible(false)}><Text className={`font-bold ${isDark ? "text-gray-400" : "text-gray-500"}`}>Cancel</Text></TouchableOpacity>

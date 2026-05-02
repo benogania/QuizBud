@@ -83,7 +83,9 @@ export default function SettingsScreen() {
     return `${displayHour}:${displayMinute} ${period}`;
   };
 
-  // 🚨 FIXED ALARM LOGIC
+  // 🚨 NEW CHANNEL ID TO OVERRIDE ANDROID'S SILENT CACHE
+  const ALARM_CHANNEL_ID = 'quizbud-urgent-alarm-v1';
+
   const scheduleDailyAlarm = async (hour24, minute) => {
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -100,28 +102,29 @@ export default function SettingsScreen() {
       }
 
       if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('study-alarm', {
-          name: 'Study Alarms',
+        await Notifications.setNotificationChannelAsync(ALARM_CHANNEL_ID, {
+          name: 'Urgent Study Alarms',
           importance: Notifications.AndroidImportance.MAX,
-          vibrationPattern: [0, 500, 200, 500],
-          lightColor: '#FF231F7C',
+          vibrationPattern: [0, 500, 200, 500, 200, 500],
+          lightColor: '#4f46e5',
           lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
           sound: 'default', 
+          bypassDnd: true,
         });
       }
 
       await Notifications.cancelAllScheduledNotificationsAsync();
 
-      // 🚨 FIX: ADDED channelId inside the trigger object
       await Notifications.scheduleNotificationAsync({
         content: { 
           title: "⏰ STUDY ALARM!", 
           body: "Time to sharpen your mind. Don't break your streak!", 
           sound: true,
+          priority: Notifications.AndroidNotificationPriority.MAX, // Force max priority on content
           color: '#4f46e5',
         },
         trigger: { 
-          channelId: 'study-alarm', // <-- This fixes the screenshot error!
+          channelId: ALARM_CHANNEL_ID, // 🚨 using the new un-cached ID
           hour: parseInt(hour24, 10), 
           minute: parseInt(minute, 10), 
           repeats: true 
@@ -148,6 +151,43 @@ export default function SettingsScreen() {
         confirmText: 'I understand'
       });
     }
+  };
+
+  // 🚨 RESTORED: THE TEST ALARM BUTTON
+  const handleTestAlarm = async () => {
+    triggerHaptic(hapticsEnabled, 'Light');
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync(ALARM_CHANNEL_ID, {
+        name: 'Urgent Study Alarms',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 500, 200, 500, 200, 500],
+        lightColor: '#4f46e5',
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+        sound: 'default', 
+        bypassDnd: true,
+      });
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      content: { 
+        title: "✅ ALARM TEST SUCCESS!", 
+        body: "Your phone is ringing! Your scheduled alarm will work perfectly.", 
+        sound: true, 
+        priority: Notifications.AndroidNotificationPriority.MAX,
+        color: '#4f46e5',
+      },
+      trigger: { 
+        seconds: 5,
+        channelId: ALARM_CHANNEL_ID,
+      },
+    });
+    
+    showModal({
+      type: 'success', title: 'Test Scheduled',
+      message: 'Lock your phone screen now. The alarm will ring loudly in 5 seconds!',
+      confirmText: 'Got it'
+    });
   };
 
   const handleToggleReminders = (value) => {
@@ -300,7 +340,7 @@ export default function SettingsScreen() {
         </View>
 
         <SectionHeader title="Gameplay & Study Alarm" />
-        <View className={`px-4 rounded-3xl ${isDark ? 'bg-gray-900' : 'bg-white shadow-sm'}`}>
+        <View className={`px-4 rounded-3xl pb-2 ${isDark ? 'bg-gray-900' : 'bg-white shadow-sm'}`}>
           <SettingRow icon={SpeakerWaveIcon} label="Sound Effects" description="Play sounds for correct/wrong answers" rightElement={<Switch value={soundEffects} onValueChange={() => { triggerHaptic(hapticsEnabled); toggleSoundEffects(); }} trackColor={{ false: '#d1d5db', true: '#4f46e5' }} thumbColor={'#ffffff'}/>} />
           <SettingRow icon={DevicePhoneMobileIcon} label="Haptic Feedback" description="Vibrate phone on button presses" rightElement={<Switch value={hapticsEnabled} onValueChange={handleToggleHaptics} trackColor={{ false: '#d1d5db', true: '#4f46e5' }} thumbColor={'#ffffff'}/>} />
           <SettingRow 
@@ -310,6 +350,17 @@ export default function SettingsScreen() {
             onPress={remindersEnabled ? () => handleToggleReminders(true) : null} 
             rightElement={<Switch value={remindersEnabled} onValueChange={handleToggleReminders} trackColor={{ false: '#d1d5db', true: '#4f46e5' }} thumbColor={'#ffffff'}/>} 
           />
+          
+          {/* 🚨 THE TEST ALARM BUTTON */}
+          {remindersEnabled && (
+            <TouchableOpacity 
+              onPress={handleTestAlarm} 
+              className={`py-3 rounded-xl mb-3 mt-1 items-center border border-dashed ${isDark ? 'bg-indigo-900/30 border-indigo-700' : 'bg-indigo-50 border-indigo-200'}`}
+            >
+              <Text className={`font-bold ${isDark ? 'text-indigo-300' : 'text-indigo-700'}`}>Test Alarm (Fires in 5s)</Text>
+            </TouchableOpacity>
+          )}
+
         </View>
 
         <SectionHeader title="AI Assistant Preferences" />

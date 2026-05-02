@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Modal, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuizStore } from '../store/useQuizStore';
 import { generateQuizWithAI } from '../services/geminiService'; 
@@ -41,7 +41,7 @@ export default function CreateQuizScreen() {
   
   // --- FILE & NUMBER STATE ---
   const [selectedFile, setSelectedFile] = useState(null);
-  const [numQuestions, setNumQuestions] = useState('5'); // Changed to string for the text input
+  const [numQuestions, setNumQuestions] = useState('5'); 
 
   // --- CUSTOM SUCCESS MODAL STATE ---
   const [isSuccessVisible, setIsSuccessVisible] = useState(false);
@@ -64,7 +64,6 @@ export default function CreateQuizScreen() {
 
   // --- LOGIC: AI GENERATION ---
   const handleAIGenerate = async () => {
-    // 🚨 CHECK IF ARRAY IS EMPTY FIRST
     const apiKeys = useQuizStore.getState().geminiApiKeys || [];
     if (apiKeys.length === 0 || !apiKeys[0].trim()) {
       setIsAIModalVisible(false); 
@@ -73,7 +72,7 @@ export default function CreateQuizScreen() {
         "To generate AI quizzes, you need to add your free Gemini API key in the app settings.",
         [
           { text: "Cancel", style: "cancel" },
-          { text: "Go to Settings", onPress: () => navigation.navigate("SettingsScreen") } 
+          { text: "Go to Settings", onPress: () => navigation.navigate("Settings") } 
         ]
       );
       return;
@@ -104,8 +103,10 @@ export default function CreateQuizScreen() {
         };
       }
 
-      // Pass the parsed number to the AI service
-      const generatedData = await generateQuizWithAI(aiTopic, parsedNum, fileData);
+      // 🚨 UPDATED PROMPT: Appended explicit instruction forcing explanations
+      const promptWithExplanationRequirement = `${aiTopic}\n\nCRITICAL INSTRUCTION: You MUST provide a clear, concise "explanation" property for every single question explaining why the correct answer is right. Do not omit this.`;
+
+      const generatedData = await generateQuizWithAI(promptWithExplanationRequirement, parsedNum, fileData);
       
       setTitle(generatedData.title || '');
       setSubject(generatedData.subject || '');
@@ -114,7 +115,6 @@ export default function CreateQuizScreen() {
       const formattedQuestions = generatedData.questions.map((q, idx) => ({
         ...q,
         id: Date.now().toString() + idx, 
-        // Fallback type if AI forgets
         type: q.type || 'multiple_choice', 
       }));
       
@@ -124,7 +124,16 @@ export default function CreateQuizScreen() {
       setSelectedFile(null); 
       
     } catch (error) {
-      Alert.alert("AI Error", "Something went wrong. If you uploaded a file, ensure it is not too large.");
+      const errorMsg = error?.message?.toLowerCase() || "";
+      if (errorMsg.includes("api key") || errorMsg.includes("not valid") || errorMsg.includes("unauthorized") || errorMsg.includes("not found")) {
+        Alert.alert("API Key Required", "Please add a valid Gemini API Key in the Settings screen to generate quizzes.");
+      } else if (errorMsg.includes("quota") || errorMsg.includes("429") || errorMsg.includes("exhausted")) {
+        Alert.alert("Limit Reached", "Your API key has reached its usage limit for today. Please try again later.");
+      } else if (errorMsg.includes("network") || errorMsg.includes("internet") || errorMsg.includes("fetch")) {
+        Alert.alert("Connection Error", "Please check your internet connection and try again.");
+      } else {
+        Alert.alert("AI Error", "Something went wrong. If you uploaded a file, ensure it is not too large.");
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -132,7 +141,7 @@ export default function CreateQuizScreen() {
 
   // --- LOGIC: MANAGE QUESTIONS ---
   const addNewQuestion = (type) => {
-    const newQ = { id: Date.now().toString(), type: type, question: '', points: 1 };
+    const newQ = { id: Date.now().toString(), type: type, question: '', points: 1, explanation: '' };
     
     if (type === 'multiple_choice') { 
       newQ.options = ['', '', '', '']; 
@@ -145,7 +154,6 @@ export default function CreateQuizScreen() {
     else if (type === 'identification') { 
       newQ.correctAnswer = ''; 
     }
-    // New Types Initialization
     else if (type === 'enumeration') {
       newQ.correctAnswers = ['', ''];
       newQ.exactOrder = false;
@@ -163,6 +171,12 @@ export default function CreateQuizScreen() {
     setQuestions(updated);
   };
 
+  const handleUpdateExplanationText = (text, index) => {
+    const updated = [...questions];
+    updated[index].explanation = text;
+    setQuestions(updated);
+  };
+
   const handleUpdateAnswer = (text, qIndex) => {
     const updated = [...questions];
     updated[qIndex].correctAnswer = text;
@@ -175,7 +189,6 @@ export default function CreateQuizScreen() {
     setQuestions(updated);
   };
 
-  // Logic for dynamic arrays (Enumeration / Rearrange)
   const handleUpdateArrayItem = (text, qIndex, itemIndex, fieldKey) => {
     const updated = [...questions];
     updated[qIndex][fieldKey][itemIndex] = text;
@@ -310,12 +323,13 @@ export default function CreateQuizScreen() {
             </View>
 
             <TextInput
-              className={`rounded-xl p-3 mb-3 font-medium border ${isDark ? 'bg-gray-900/50 border-gray-700 text-white' : 'bg-gray-50 border-gray-100 text-gray-800'}`}
+              className={`rounded-xl p-3 mb-3 font-medium border min-h-[60px] ${isDark ? 'bg-gray-900/50 border-gray-700 text-white' : 'bg-gray-50 border-gray-100 text-gray-800'}`}
               value={q.question}
               onChangeText={(text) => handleUpdateQuestionText(text, index)}
               placeholder="Enter question..."
               placeholderTextColor={isDark ? "#4b5563" : "#9ca3af"}
               multiline
+              textAlignVertical="top" // Ensure text starts at the top of the box
             />
 
             {/* MULTIPLE CHOICE & TRUE FALSE */}
@@ -423,6 +437,19 @@ export default function CreateQuizScreen() {
                 </TouchableOpacity>
               </View>
             )}
+
+            {/* 🚨 NEW: EXPLANATION FIELD */}
+            <View className="mt-4 border-t border-dashed pt-3 border-gray-200 dark:border-gray-700">
+              <Text className={`text-[10px] font-bold uppercase tracking-widest mb-1 ml-1 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`}>Explanation</Text>
+              <TextInput
+                className={`rounded-xl p-3 border text-sm ${isDark ? 'bg-gray-900/50 border-gray-700 text-gray-300' : 'bg-gray-50 border-gray-100 text-gray-600'}`}
+                value={q.explanation || ''}
+                onChangeText={(text) => handleUpdateExplanationText(text, index)}
+                placeholder="Why is this the correct answer?"
+                placeholderTextColor={isDark ? "#4b5563" : "#9ca3af"}
+                multiline
+              />
+            </View>
           </View>
         ))}
 
@@ -446,7 +473,6 @@ export default function CreateQuizScreen() {
               <Text className="text-white text-[10px] font-bold mt-1">Ident</Text>
             </TouchableOpacity>
 
-            {/* NEW ADD BUTTONS */}
             <TouchableOpacity onPress={() => addNewQuestion('enumeration')} className={`items-center p-3 rounded-2xl w-[48%] ${isDark ? 'bg-indigo-900' : 'bg-indigo-800'}`}>
               <QueueListIcon color="white" size={24} />
               <Text className="text-white text-[10px] font-bold mt-1">Enum</Text>
@@ -473,7 +499,10 @@ export default function CreateQuizScreen() {
 
       {/* AI GENERATION MODAL */}
       <Modal animationType="slide" transparent={true} visible={isAIModalVisible} onRequestClose={() => setIsAIModalVisible(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' }}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' }}
+        >
           <View className={`w-full rounded-t-[40px] p-6 pb-12 shadow-2xl ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
             <View className="flex-row justify-between items-center mb-6">
               <View className="flex-row items-center">
@@ -496,8 +525,7 @@ export default function CreateQuizScreen() {
                 </Text>
               </View>
             ) : (
-              <View>
-                {/* File Upload Section */}
+              <ScrollView keyboardShouldPersistTaps="handled">
                 <Text className={`font-bold mb-2 ml-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>1. Upload Study Material (Optional)</Text>
                 <TouchableOpacity 
                   onPress={handlePickFile}
@@ -523,30 +551,30 @@ export default function CreateQuizScreen() {
                   )}
                 </TouchableOpacity>
 
-                {/* Topic Input */}
                 <Text className={`font-bold mb-2 ml-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>2. Specific Topic or Instructions</Text>
+                {/* 🚨 UPDATED: Made input taller and multiline */}
                 <TextInput
-                  className={`rounded-2xl p-4 mb-6 border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
-                  placeholder="e.g., 'Focus on Chapter 3' or 'JavaScript Promises'"
+                  className={`rounded-2xl p-4 mb-6 border min-h-[120px] ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                  placeholder="e.g., 'Create a difficult quiz about JavaScript Promises. Focus heavily on async/await syntax and error handling...'"
                   placeholderTextColor={isDark ? "#6b7280" : "#9ca3af"}
                   value={aiTopic}
                   onChangeText={setAiTopic}
+                  multiline
+                  textAlignVertical="top" 
                 />
 
-                {/* UPDATED: TextInput for Number of Questions */}
                 <Text className={`font-bold mb-2 ml-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>3. Number of Questions</Text>
                 <TextInput
                   className={`rounded-2xl p-4 mb-8 border font-black text-center text-2xl ${isDark ? 'bg-gray-800 border-gray-700 text-indigo-400' : 'bg-gray-50 border-gray-200 text-indigo-900'}`}
                   keyboardType="numeric"
                   value={numQuestions}
                   onChangeText={(text) => {
-                    // Only allow numeric input
                     const formatted = text.replace(/[^0-9]/g, '');
                     setNumQuestions(formatted);
                   }}
                   placeholder="e.g., 10"
                   placeholderTextColor={isDark ? "#4b5563" : "#9ca3af"}
-                  maxLength={2} // Keeps it from getting unreasonably large
+                  maxLength={2} 
                 />
                 
                 <TouchableOpacity 
@@ -557,34 +585,29 @@ export default function CreateQuizScreen() {
                   <Text className="text-white font-bold text-lg mr-2">Generate Quiz</Text>
                   <SparklesIcon color="white" size={20} />
                 </TouchableOpacity>
-              </View>
+              </ScrollView>
             )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* CUSTOM SUCCESS MODAL */}
       <Modal animationType="fade" transparent={true} visible={isSuccessVisible} onRequestClose={handleCloseSuccess}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' }}>
           <View className={`w-10/12 rounded-[40px] p-8 items-center shadow-2xl ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
-            
             <View className="bg-[#4caf50] w-20 h-20 rounded-full items-center justify-center mb-6 shadow-sm shadow-green-200">
               <CheckIconSolid color="white" size={40} />
             </View>
-            
             <Text className={`text-2xl font-extrabold mb-3 text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>Action Successful</Text>
-            
             <Text className={`text-base text-center mb-8 px-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               Your new quiz has been successfully saved to your library.
             </Text>
-            
             <TouchableOpacity 
               className="bg-indigo-600 w-full py-4 rounded-full shadow-md"
               onPress={handleCloseSuccess}
             >
               <Text className="text-white text-center font-bold text-lg">OK</Text>
             </TouchableOpacity>
-            
           </View>
         </View>
       </Modal>

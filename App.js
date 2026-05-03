@@ -6,6 +6,9 @@ import * as NavigationBar from 'expo-navigation-bar';
 import * as SystemUI from 'expo-system-ui'; 
 import { useQuizStore } from './src/store/useQuizStore';
 
+// 🚨 IMPORT NOTIFEE FOR THE BACKGROUND SERVICE
+import notifee from '@notifee/react-native';
+
 import TabNavigator from './src/navigation/TabNavigator';
 import QuizPlayer from './src/screens/QuizPlayer'; 
 import ActiveQuizScreen from './src/screens/ActiveQuizScreen'; 
@@ -27,6 +30,16 @@ import AllCollectionsScreen from './src/screens/AllCollectionsScreen';
 import RecentActivityScreen from './src/screens/RecentActivityScreen';
 import AIPromptGuideScreen from './src/screens/AIPromptGuideScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+
+// 🚨 THIS IS THE MAGIC: REGISTER THE 24/7 BACKGROUND WORKER
+// It must stay outside the App() function so it survives UI suspension.
+notifee.registerForegroundService((notification) => {
+  return new Promise(() => {
+    // This promise deliberately never resolves. 
+    // This tricks Android into keeping the background memory alive indefinitely!
+    console.log("QuizBud 24/7 Background Service is running!");
+  });
+});
 
 // SplashScreen.preventAutoHideAsync();
 const Stack = createNativeStackNavigator();
@@ -106,7 +119,6 @@ export default function App() {
         <Stack.Screen name="MatchMaster" component={MatchMasterScreen} />
         <Stack.Screen name="SpellingScreen" component={SpellingScreen} />
         {/* <Stack.Screen name="QuizPreview" component={QuizPreviewScreen} /> */}
-
 
       </Stack.Navigator>
     </NavigationContainer>

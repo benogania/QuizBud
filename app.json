@@ -23,19 +23,25 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": false,
-      "package": "com.anonymous.QuizBud",
+      "package": "com.bendo.QuizBud",
       "navigationBar": {
         "visible": "always",
         "backgroundColor": "#0f172a",
         "barStyle": "light-content"
       },
       "permissions": [
-        "NOTIFICATIONS",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED",
         "SCHEDULE_EXACT_ALARM",
         "USE_EXACT_ALARM",
-        "VIBRATE"
+        "USE_FULL_SCREEN_INTENT", 
+        "FOREGROUND_SERVICE"
       ]
     },
+    "plugins": [
+      "expo-notifications"
+    ],
+
     "web": {
       "favicon": "./assets/favicon.png"
     },

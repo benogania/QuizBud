@@ -1,63 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, Platform, Modal, TextInput, Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Switch, Platform, Modal, TextInput, Linking, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuizStore } from '../store/useQuizStore';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import * as Notifications from 'expo-notifications'; 
+
+import notifee, { AndroidImportance, AndroidVisibility, TriggerType, RepeatFrequency } from '@notifee/react-native';
 
 import { triggerHaptic } from '../utils/hapticHelper'; 
 
 import { 
-  ArrowLeftIcon, 
-  MoonIcon, 
-  SunIcon,
-  SpeakerWaveIcon,
-  DevicePhoneMobileIcon,
-  BellAlertIcon,
-  SparklesIcon,
-  ArrowDownTrayIcon,
-  ArrowUpTrayIcon, 
-  TrashIcon,
-  ExclamationTriangleIcon,
-  ChevronRightIcon,
-  ClockIcon,
-  ChevronUpIcon,
-  ChevronDownIcon,
-  KeyIcon,
-  PlusIcon,
-  ArrowTopRightOnSquareIcon
+  ArrowLeftIcon, MoonIcon, SunIcon, SpeakerWaveIcon, DevicePhoneMobileIcon,
+  BellAlertIcon, SparklesIcon, ArrowDownTrayIcon, ArrowUpTrayIcon, TrashIcon,
+  ExclamationTriangleIcon, ChevronRightIcon, ClockIcon, ChevronUpIcon,
+  ChevronDownIcon, KeyIcon, PlusIcon, ArrowTopRightOnSquareIcon,
+  WrenchScrewdriverIcon 
 } from 'react-native-heroicons/outline';
 import { CheckCircleIcon } from 'react-native-heroicons/solid';
-
-// 🚨 CONFIGURE ALARM BEHAVIOR
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    priority: Notifications.AndroidImportance.MAX, 
-  }),
-});
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   
   const { 
-    theme, setTheme, 
-    quizzes, 
-    soundEffects, toggleSoundEffects,
-    hapticsEnabled, toggleHaptics,
-    aiTone, setAiTone,
-    clearHistory,  
-    factoryReset,
-    importQuizzes,
-    remindersEnabled, setRemindersEnabled, 
-    reminderTime, setReminderTime,
-    geminiApiKeys = [], addApiKey, removeApiKey 
+    theme, setTheme, quizzes, soundEffects, toggleSoundEffects,
+    hapticsEnabled, toggleHaptics, aiTone, setAiTone, clearHistory,  
+    factoryReset, importQuizzes, remindersEnabled, setRemindersEnabled, 
+    reminderTime, setReminderTime, geminiApiKeys = [], addApiKey, removeApiKey 
   } = useQuizStore(); 
   
   const isDark = theme === 'dark';
@@ -83,114 +54,197 @@ export default function SettingsScreen() {
     return `${displayHour}:${displayMinute} ${period}`;
   };
 
-  // 🚨 NEW CHANNEL ID TO OVERRIDE ANDROID'S SILENT CACHE
   const ALARM_CHANNEL_ID = 'quizbud-urgent-alarm-v1';
+  const BG_SERVICE_CHANNEL_ID = 'quizbud-bg-service';
+
+  // 1. Channel for the loud, waking alarm
+  const setupNotifeeChannel = async () => {
+    await notifee.requestPermission();
+    if (Platform.OS === 'android') {
+      return await notifee.createChannel({
+        id: ALARM_CHANNEL_ID,
+        name: 'Urgent Study Alarms',
+        importance: AndroidImportance.HIGH, 
+        visibility: AndroidVisibility.PUBLIC,
+        sound: 'default',
+        vibration: true,
+        vibrationPattern: [300, 500, 300, 500],
+        bypassDnd: true, 
+      });
+    }
+    return 'default';
+  };
+
+  // 2. Channel for the silent 24/7 background notification
+  const setupBackgroundChannel = async () => {
+    if (Platform.OS === 'android') {
+      return await notifee.createChannel({
+        id: BG_SERVICE_CHANNEL_ID,
+        name: 'Background Service',
+        importance: AndroidImportance.MIN, // Silent, no pop-up
+        vibration: false,
+      });
+    }
+    return 'default';
+  };
+
+  // 🚨 LAUNCH THE 24/7 FOREGROUND SERVICE
+  const start247BackgroundService = async () => {
+    try {
+      const channelId = await setupBackgroundChannel();
+      await notifee.displayNotification({
+        id: 'quizbud-247-service',
+        title: 'QuizBud is Active',
+        body: 'Monitoring your study alarms in the background.',
+        android: {
+          channelId,
+          asForegroundService: true, // This makes it indestructible by the OS
+          ongoing: true, // User cannot swipe it away
+        },
+      });
+    } catch (error) {
+      console.log("Failed to start foreground service:", error);
+    }
+  };
 
   const scheduleDailyAlarm = async (hour24, minute) => {
     try {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
+      const channelId = await setupNotifeeChannel();
       
-      if (finalStatus !== 'granted') {
-        showModal({ type: 'danger', title: 'Permission Denied', message: 'Standard notifications are disabled. Please enable them in your phone settings.', confirmText: 'Got it' });
-        setRemindersEnabled(false);
-        return;
+      // Start the 24/7 background worker
+      await start247BackgroundService();
+
+      const date = new Date(Date.now());
+      date.setHours(hour24);
+      date.setMinutes(minute);
+      date.setSeconds(0);
+      date.setMilliseconds(0);
+
+      if (date.getTime() <= Date.now()) {
+        date.setDate(date.getDate() + 1);
       }
 
-      if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync(ALARM_CHANNEL_ID, {
-          name: 'Urgent Study Alarms',
-          importance: Notifications.AndroidImportance.MAX,
-          vibrationPattern: [0, 500, 200, 500, 200, 500],
-          lightColor: '#4f46e5',
-          lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-          sound: 'default', 
-          bypassDnd: true,
-        });
-      }
-
-      await Notifications.cancelAllScheduledNotificationsAsync();
-
-      await Notifications.scheduleNotificationAsync({
-        content: { 
-          title: "⏰ STUDY ALARM!", 
-          body: "Time to sharpen your mind. Don't break your streak!", 
-          sound: true,
-          priority: Notifications.AndroidNotificationPriority.MAX, // Force max priority on content
-          color: '#4f46e5',
+      const trigger = {
+        type: TriggerType.TIMESTAMP,
+        timestamp: date.getTime(),
+        repeatFrequency: RepeatFrequency.DAILY,
+        alarmManager: {
+          allowWhileIdle: true, 
         },
-        trigger: { 
-          channelId: ALARM_CHANNEL_ID, // 🚨 using the new un-cached ID
-          hour: parseInt(hour24, 10), 
-          minute: parseInt(minute, 10), 
-          repeats: true 
+      };
+
+      await notifee.createTriggerNotification(
+        {
+          title: '⏰ STUDY ALARM!',
+          body: "Time to sharpen your mind. Don't break your streak!",
+          android: {
+            channelId,
+            category: 'alarm',
+            fullScreenAction: {
+              id: 'default', 
+            },
+            importance: AndroidImportance.HIGH,
+            pressAction: {
+              id: 'default',
+            },
+          },
         },
-      });
+        trigger,
+      );
 
       setRemindersEnabled(true);
       showModal({
         type: 'success', title: 'Alarm Activated!',
-        message: `Your study alarm is now set for ${getFormattedTime()}.`,
-        confirmText: 'Let\'s Study!'
+        message: `Your alarm is set for ${getFormattedTime()}, and QuizBud is now running 24/7 in the background!`,
+        confirmText: 'Awesome!'
       });
 
     } catch (error) {
       setRemindersEnabled(false); 
-      const isAndroid14Error = error.message.toLowerCase().includes('exact alarm') || error.message.toLowerCase().includes('permission');
-      
       showModal({
         type: 'danger', 
         title: 'System Blocked Alarm',
-        message: isAndroid14Error 
-          ? "Android requires special permission for exact alarms.\n\nGo to your phone's Settings -> Apps -> QuizBud -> 'Alarms & Reminders' -> Allow."
-          : `Error: ${error.message}`,
+        message: `Android blocked the alarm setup. Ensure exact alarms are allowed in app settings.\n\nError: ${error.message}`,
         confirmText: 'I understand'
       });
     }
   };
 
-  // 🚨 RESTORED: THE TEST ALARM BUTTON
   const handleTestAlarm = async () => {
     triggerHaptic(hapticsEnabled, 'Light');
+    try {
+      const channelId = await setupNotifeeChannel();
+      const trigger = {
+        type: TriggerType.TIMESTAMP,
+        timestamp: Date.now() + 5000,
+        alarmManager: { allowWhileIdle: true },
+      };
 
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync(ALARM_CHANNEL_ID, {
-        name: 'Urgent Study Alarms',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 500, 200, 500, 200, 500],
-        lightColor: '#4f46e5',
-        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-        sound: 'default', 
-        bypassDnd: true,
+      await notifee.createTriggerNotification(
+        {
+          title: '✅ ALARM TEST SUCCESS!',
+          body: "Your phone woke up! Your scheduled alarm is fully functional.",
+          android: {
+            channelId,
+            category: 'alarm',
+            fullScreenAction: { id: 'default' },
+            importance: AndroidImportance.HIGH,
+            pressAction: { id: 'default' },
+          },
+        },
+        trigger,
+      );
+
+      showModal({
+        type: 'success', title: 'Test Scheduled',
+        message: 'Lock your phone screen immediately. The screen will turn on and ring in 5 seconds!',
+        confirmText: 'Got it'
       });
+    } catch (error) {
+      Alert.alert("Error", error.message);
     }
-
-    await Notifications.scheduleNotificationAsync({
-      content: { 
-        title: "✅ ALARM TEST SUCCESS!", 
-        body: "Your phone is ringing! Your scheduled alarm will work perfectly.", 
-        sound: true, 
-        priority: Notifications.AndroidNotificationPriority.MAX,
-        color: '#4f46e5',
-      },
-      trigger: { 
-        seconds: 5,
-        channelId: ALARM_CHANNEL_ID,
-      },
-    });
-    
-    showModal({
-      type: 'success', title: 'Test Scheduled',
-      message: 'Lock your phone screen now. The alarm will ring loudly in 5 seconds!',
-      confirmText: 'Got it'
-    });
   };
 
-  const handleToggleReminders = (value) => {
+  const handleDiagnoseAlarm = async () => {
+    triggerHaptic(hapticsEnabled, 'Medium');
+    
+    try {
+      if (Platform.OS === 'android' && Platform.Version >= 31) {
+        const alarmInfo = await notifee.getAlarmManagerInfo();
+        if (!alarmInfo.hasExactAlarmPermission) {
+          Alert.alert(
+            'Permission Missing', 
+            'Your phone requires explicit permission to set exact alarms.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Fix it', onPress: () => notifee.openAlarmPermissionSettings() }
+            ]
+          );
+          return;
+        }
+      }
+
+      const powerManagerInfo = await notifee.getPowerManagerInfo();
+      if (powerManagerInfo.activity) {
+        Alert.alert(
+          'Tecno / Custom OS Blocked',
+          'Tecno phones kill background alarms. You MUST open the "Phone Master" app and enable Auto-Start for QuizBud.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => notifee.openPowerManagerSettings() },
+          ]
+        );
+        return;
+      }
+
+      Alert.alert("All Clear! ✅", "If it still delays on your Tecno, you MUST lock the app in your Recent Apps tray (swipe down and tap the padlock).");
+      
+    } catch (error) {
+      Alert.alert("Diagnostic Error", "Could not check phone settings automatically.");
+    }
+  };
+
+  const handleToggleReminders = async (value) => {
     triggerHaptic(hapticsEnabled, 'Light');
     if (value) {
       let h12 = reminderTime.hour % 12 || 12;
@@ -199,7 +253,9 @@ export default function SettingsScreen() {
       setTempPeriod(reminderTime.hour >= 12 ? 'PM' : 'AM');
       setIsTimePickerVisible(true);
     } else {
-      Notifications.cancelAllScheduledNotificationsAsync();
+      // 🚨 KILL ALARMS AND STOP 24/7 BACKGROUND SERVICE
+      await notifee.cancelAllNotifications();
+      await notifee.stopForegroundService();
       setRemindersEnabled(false);
     }
   };
@@ -290,7 +346,7 @@ export default function SettingsScreen() {
       showCancel: true, confirmText: 'Wipe Everything', onConfirm: () => { if(factoryReset) factoryReset(); showModal({ type: 'success', title: 'Reset Complete', message: 'App restored to factory settings.', confirmText: 'OK' }); }
     });
   };
-
+  
   const cycleAiTone = () => {
     triggerHaptic(hapticsEnabled);
     const tones = ['Standard', 'Explain like I\'m 5', 'Academic'];
@@ -346,19 +402,28 @@ export default function SettingsScreen() {
           <SettingRow 
             icon={BellAlertIcon} 
             label="Daily Study Alarm" 
-            description={remindersEnabled ? `Fires daily at ${getFormattedTime()}` : "Get a high-priority alarm to keep your streak"} 
+            description={remindersEnabled ? `Fires daily at ${getFormattedTime()}` : "Runs a 24/7 background service for reliability"} 
             onPress={remindersEnabled ? () => handleToggleReminders(true) : null} 
             rightElement={<Switch value={remindersEnabled} onValueChange={handleToggleReminders} trackColor={{ false: '#d1d5db', true: '#4f46e5' }} thumbColor={'#ffffff'}/>} 
           />
           
-          {/* 🚨 THE TEST ALARM BUTTON */}
           {remindersEnabled && (
-            <TouchableOpacity 
-              onPress={handleTestAlarm} 
-              className={`py-3 rounded-xl mb-3 mt-1 items-center border border-dashed ${isDark ? 'bg-indigo-900/30 border-indigo-700' : 'bg-indigo-50 border-indigo-200'}`}
-            >
-              <Text className={`font-bold ${isDark ? 'text-indigo-300' : 'text-indigo-700'}`}>Test Alarm (Fires in 5s)</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity 
+                onPress={handleDiagnoseAlarm} 
+                className={`py-3 rounded-xl mb-2 mt-1 flex-row justify-center items-center ${isDark ? 'bg-red-900/30' : 'bg-red-50'}`}
+              >
+                <WrenchScrewdriverIcon color={isDark ? "#fca5a5" : "#ef4444"} size={18} />
+                <Text className={`font-bold ml-2 ${isDark ? 'text-red-300' : 'text-red-600'}`}>Fix Alarm Reliability</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                onPress={handleTestAlarm} 
+                className={`py-3 rounded-xl mb-3 items-center border border-dashed ${isDark ? 'bg-indigo-900/30 border-indigo-700' : 'bg-indigo-50 border-indigo-200'}`}
+              >
+                <Text className={`font-bold ${isDark ? 'text-indigo-300' : 'text-indigo-700'}`}>Test Native Alarm (Fires in 5s)</Text>
+              </TouchableOpacity>
+            </>
           )}
 
         </View>
@@ -417,42 +482,6 @@ export default function SettingsScreen() {
 
       </ScrollView>
 
-      {/* API KEY MODAL */}
-      <Modal animationType="fade" transparent={true} visible={isApiKeyModalVisible} onRequestClose={() => setIsApiKeyModalVisible(false)}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }}>
-          <View className={`w-10/12 rounded-[32px] p-6 shadow-2xl ${isDark ? "bg-gray-900" : "bg-white"}`}>
-            <View className={`w-12 h-12 rounded-full self-center items-center justify-center mb-4 ${isDark ? 'bg-indigo-900/40' : 'bg-indigo-100'}`}>
-              <KeyIcon color={isDark ? "#818cf8" : "#4f46e5"} size={24} />
-            </View>
-            <Text className={`text-xl font-extrabold mb-2 text-center ${isDark ? "text-white" : "text-gray-900"}`}>Add API Key</Text>
-            <Text className={`text-xs text-center mb-6 px-2 leading-5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Paste your Google Gemini API Key here to enable AI features.</Text>
-            
-            <TextInput 
-              value={newApiKeyValue} 
-              onChangeText={setNewApiKeyValue} 
-              placeholder="AIzaSy..." 
-              placeholderTextColor={isDark ? "#6b7280" : "#9ca3af"} 
-              className={`p-4 rounded-2xl border mb-3 font-medium text-base ${isDark ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`} 
-            />
-
-            <TouchableOpacity 
-              onPress={handleGetApiKeyLink}
-              className="flex-row items-center justify-center mb-6"
-            >
-              <Text className={`font-bold mr-1 text-sm ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`}>
-                Get a free API Key
-              </Text>
-              <ArrowTopRightOnSquareIcon color={isDark ? "#818cf8" : "#4f46e5"} size={14} />
-            </TouchableOpacity>
-            
-            <View className="flex-row justify-end items-center">
-              <TouchableOpacity className="px-5 py-3 rounded-full mr-2" onPress={() => setIsApiKeyModalVisible(false)}><Text className={`font-bold ${isDark ? "text-gray-400" : "text-gray-500"}`}>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity className="bg-indigo-600 px-6 py-3 rounded-full shadow-sm" onPress={handleAddApiKey}><Text className="text-white font-bold">Add Key</Text></TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       {/* TIME PICKER MODAL */}
       <Modal animationType="slide" transparent={true} visible={isTimePickerVisible} onRequestClose={() => {setIsTimePickerVisible(false); setRemindersEnabled(false);}}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" }}>
@@ -463,7 +492,7 @@ export default function SettingsScreen() {
             </View>
             
             <Text className={`text-2xl font-extrabold mb-2 text-center ${isDark ? "text-white" : "text-gray-900"}`}>Set Study Alarm</Text>
-            <Text className={`text-sm text-center mb-8 px-2 leading-5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>This alarm will bypass some system restrictions to ensure you study exactly on time.</Text>
+            <Text className={`text-sm text-center mb-8 px-2 leading-5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>This alarm uses native intents to ensure it fires correctly.</Text>
             
             <View className="flex-row items-center justify-center space-x-6 mb-10 w-full px-4">
               <View className="items-center w-20">
@@ -511,6 +540,42 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
+      {/* API KEY MODAL */}
+      <Modal animationType="fade" transparent={true} visible={isApiKeyModalVisible} onRequestClose={() => setIsApiKeyModalVisible(false)}>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }}>
+          <View className={`w-10/12 rounded-[32px] p-6 shadow-2xl ${isDark ? "bg-gray-900" : "bg-white"}`}>
+            <View className={`w-12 h-12 rounded-full self-center items-center justify-center mb-4 ${isDark ? 'bg-indigo-900/40' : 'bg-indigo-100'}`}>
+              <KeyIcon color={isDark ? "#818cf8" : "#4f46e5"} size={24} />
+            </View>
+            <Text className={`text-xl font-extrabold mb-2 text-center ${isDark ? "text-white" : "text-gray-900"}`}>Add API Key</Text>
+            <Text className={`text-xs text-center mb-6 px-2 leading-5 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Paste your Google Gemini API Key here to enable AI features.</Text>
+            
+            <TextInput 
+              value={newApiKeyValue} 
+              onChangeText={setNewApiKeyValue} 
+              placeholder="AIzaSy..." 
+              placeholderTextColor={isDark ? "#6b7280" : "#9ca3af"} 
+              className={`p-4 rounded-2xl border mb-3 font-medium text-base ${isDark ? "bg-gray-800 border-gray-700 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`} 
+            />
+
+            <TouchableOpacity 
+              onPress={handleGetApiKeyLink}
+              className="flex-row items-center justify-center mb-6"
+            >
+              <Text className={`font-bold mr-1 text-sm ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`}>
+                Get a free API Key
+              </Text>
+              <ArrowTopRightOnSquareIcon color={isDark ? "#818cf8" : "#4f46e5"} size={14} />
+            </TouchableOpacity>
+            
+            <View className="flex-row justify-end items-center">
+              <TouchableOpacity className="px-5 py-3 rounded-full mr-2" onPress={() => setIsApiKeyModalVisible(false)}><Text className={`font-bold ${isDark ? "text-gray-400" : "text-gray-500"}`}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity className="bg-indigo-600 px-6 py-3 rounded-full shadow-sm" onPress={handleAddApiKey}><Text className="text-white font-bold">Add Key</Text></TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal animationType="fade" transparent={true} visible={modalConfig.visible} onRequestClose={closeModal}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }}>
           <View className={`w-10/12 rounded-[32px] p-6 shadow-2xl items-center ${isDark ? "bg-gray-900" : "bg-white"}`}>
@@ -543,6 +608,7 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+
     </View>
   );
 }

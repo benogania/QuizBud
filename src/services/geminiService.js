@@ -1,8 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { useQuizStore } from "../store/useQuizStore"; // 🚨 NEW: Import the store directly
+import { useQuizStore } from "../store/useQuizStore"; //  NEW: Import the store directly
 
 const callGeminiWithFallback = async (prompt, isJson = true, fileData = null) => {
-  // 🚨 NEW: Pull the keys directly from the user's settings!
+  //  Pull the keys directly from the user's settings!
   const API_KEYS = useQuizStore.getState().geminiApiKeys || [];
 
   if (API_KEYS.length === 0) {

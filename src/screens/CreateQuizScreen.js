@@ -103,7 +103,7 @@ export default function CreateQuizScreen() {
         };
       }
 
-      // 🚨 UPDATED PROMPT: Appended explicit instruction forcing explanations
+      // UPDATED PROMPT: Appended explicit instruction forcing explanations
       const promptWithExplanationRequirement = `${aiTopic}\n\nCRITICAL INSTRUCTION: You MUST provide a clear, concise "explanation" property for every single question explaining why the correct answer is right. Do not omit this.`;
 
       const generatedData = await generateQuizWithAI(promptWithExplanationRequirement, parsedNum, fileData);
@@ -438,7 +438,7 @@ export default function CreateQuizScreen() {
               </View>
             )}
 
-            {/* 🚨 NEW: EXPLANATION FIELD */}
+            {/* NEW: EXPLANATION FIELD */}
             <View className="mt-4 border-t border-dashed pt-3 border-gray-200 dark:border-gray-700">
               <Text className={`text-[10px] font-bold uppercase tracking-widest mb-1 ml-1 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`}>Explanation</Text>
               <TextInput
@@ -552,7 +552,8 @@ export default function CreateQuizScreen() {
                 </TouchableOpacity>
 
                 <Text className={`font-bold mb-2 ml-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>2. Specific Topic or Instructions</Text>
-                {/* 🚨 UPDATED: Made input taller and multiline */}
+               
+               {/* Instruction  input  */}
                 <TextInput
                   className={`rounded-2xl p-4 mb-6 border min-h-[120px] ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
                   placeholder="e.g., 'Create a difficult quiz about JavaScript Promises. Focus heavily on async/await syntax and error handling...'"

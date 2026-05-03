@@ -46,8 +46,6 @@ export default function FlashcardScreen({ route, navigation }) {
 
   // Functionality for the Confidence Buttons
   const handleConfidenceRating = (knewIt) => {
-    // Here you could add logic to save the 'knewIt' boolean to a database/state
-    // to track which words they struggle with. For now, it advances the card.
     nextCard();
   };
 

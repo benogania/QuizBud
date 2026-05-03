@@ -103,7 +103,7 @@ export default function ActiveQuizScreen({ route, navigation }) {
     });
   };
 
-  // 🚨 Bulleproof Re-arrange moving logic!
+  // Bulleproof Re-arrange moving logic!
   const moveItem = (index, direction) => {
     if (isEvaluated) return;
     const newArr = [...selectedAnswer];
@@ -132,7 +132,7 @@ export default function ActiveQuizScreen({ route, navigation }) {
          const userAns = selectedAnswer.map(a => a.toLowerCase().trim());
          const correctAns = currentQ.correctAnswers.map(a => a.toLowerCase().trim());
          
-         // 🚨 SMART LOGIC: Checks exactOrder true/false
+         // SMART LOGIC: Checks exactOrder true/false
          if (currentQ.exactOrder) {
            isCorrect = JSON.stringify(userAns) === JSON.stringify(correctAns);
          } else {

@@ -9,7 +9,7 @@ import {
   CheckCircleIcon,
   PencilSquareIcon,
   Cog6ToothIcon,
-  QueueListIcon,       // 🚨 FIXED: Changed from NumberedListIcon to a valid icon!
+  QueueListIcon,      
   ArrowsUpDownIcon
 } from 'react-native-heroicons/outline';
 
@@ -92,7 +92,7 @@ export default function QuizPlayer({ route, navigation }) {
             </View>
           )}
 
-          {/* 🚨 FIXED ENUMERATION ICON HERE */}
+          {/* FIXED ENUMERATION ICON HERE */}
           {enumCount > 0 && (
             <View className="flex-row items-center mb-3">
               <QueueListIcon color={isDark ? "#f472b6" : "#db2777"} size={20} />

@@ -21,7 +21,7 @@ import { triggerHaptic } from '../utils/hapticHelper';
 
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
 
-// 🚨 Import the separated modal component
+// Import the separated modal component
 import FolderSelectorModal from '../components/FolderSelectorModal'; 
 
 // Icons
@@ -534,7 +534,7 @@ export default function CollectionScreen() {
         </View>
       </Modal>
 
-      {/* 🚨 NEW: EXPORTED COMPONENT RENDERED HERE */}
+      {/* NEW: EXPORTED COMPONENT RENDERED HERE */}
       <FolderSelectorModal 
         visible={isFolderModalVisible}
         onClose={() => setIsFolderModalVisible(false)}

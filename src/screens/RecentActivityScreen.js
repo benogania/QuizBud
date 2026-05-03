@@ -25,7 +25,7 @@ export default function RecentActivityScreen() {
   const { theme, hapticsEnabled, quizHistory = [], quizzes = [] } = useQuizStore();
   const isDark = theme === 'dark';
 
-  // 🚨 NEW: 30-Day Filter Logic
+  //30-Day Filter Logic
   const recent30DaysHistory = useMemo(() => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -69,7 +69,7 @@ export default function RecentActivityScreen() {
         </View>
         <Text className={`text-sm mb-6 ml-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Showing your quizzes from the last 30 days.</Text>
 
-        {/* 🚨 Use the filtered array instead of the raw quizHistory */}
+        {/*Use the filtered array instead of the raw quizHistory */}
         {recent30DaysHistory.length === 0 ? (
           <View className={`rounded-[32px] p-8 mt-4 border-2 border-dashed items-center ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'}`}>
             <AcademicCapIcon color={isDark ? "#4b5563" : "#9ca3af"} size={48} />

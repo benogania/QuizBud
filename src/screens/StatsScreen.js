@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Animated, Dimensions } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useQuizStore } from '../store/useQuizStore';
 import { generateStudyRecommendation } from '../services/geminiService';
 
@@ -9,7 +10,8 @@ import {
   CalculatorIcon,      
   BookOpenIcon,
   SparklesIcon,
-  AcademicCapIcon
+  AcademicCapIcon,
+  ClockIcon
 } from 'react-native-heroicons/solid';
 
 // --- CUSTOM ANIMATED NUMBER COMPONENT ---
@@ -19,14 +21,14 @@ const AnimatedNumber = ({ value, format, trigger, textClass }) => {
   useEffect(() => {
     if (!trigger) return;
     let start = 0;
-    const duration = 1500; // 1.5 seconds to count up
+    const duration = 1500; 
     const end = parseFloat(value) || 0;
     const startTime = Date.now();
 
     const animate = () => {
       const now = Date.now();
       const progress = Math.min((now - startTime) / duration, 1);
-      const easeProgress = 1 - Math.pow(1 - progress, 4); // easeOutQuart
+      const easeProgress = 1 - Math.pow(1 - progress, 4); 
       setDisplayValue(start + (end - start) * easeProgress);
 
       if (progress < 1) {
@@ -47,6 +49,7 @@ const AnimatedNumber = ({ value, format, trigger, textClass }) => {
 };
 
 export default function StatsScreen() {
+  const navigation = useNavigation();
   const { 
     quizHistory = [], 
     quizzes = [], 
@@ -70,17 +73,15 @@ export default function StatsScreen() {
   const [habitsY, setHabitsY] = useState(9999);
   const windowHeight = Dimensions.get('window').height;
 
-  // Trigger Graph animations immediately (or on ViewMode change)
   useEffect(() => {
     graphAnim.setValue(0);
     Animated.timing(graphAnim, {
       toValue: 1,
       duration: 1000,
-      useNativeDriver: false, // Must be false for height interpolation
+      useNativeDriver: false, 
     }).start();
   }, [viewMode]);
 
-  // Handle Initial Layout Visibility (If screen is big enough to see without scrolling)
   useEffect(() => {
     if (windowHeight >= metricsY && !triggerMetrics) setTriggerMetrics(true);
     if (windowHeight >= habitsY && !triggerHabits) {
@@ -89,10 +90,9 @@ export default function StatsScreen() {
     }
   }, [metricsY, habitsY]);
 
-  // Handle Scroll Visibility
   const handleScroll = (e) => {
     const scrollY = e.nativeEvent.contentOffset.y;
-    const bottomOfScreen = scrollY + windowHeight - 100; // 100px buffer before triggering
+    const bottomOfScreen = scrollY + windowHeight - 100; 
 
     if (bottomOfScreen >= metricsY && !triggerMetrics) {
       setTriggerMetrics(true);
@@ -278,6 +278,16 @@ export default function StatsScreen() {
 
   const subjectIcons = [BeakerIcon, CalculatorIcon, BookOpenIcon, AcademicCapIcon];
 
+  // --- DYNAMIC STUDY HABITS CALCULATIONS ---
+  // Calculates dynamic bar widths (max 100%). We assume 15 quizzes/month is 100% capacity.
+  const volumePercentage = Math.min((stats.current.count / 15) * 100, 100) || 2; 
+  // We assume 120 minutes (2 hours) of active study is 100% capacity.
+  const minutesPercentage = Math.min((stats.current.minutes / 120) * 100, 100) || 2;
+
+  let volumeLabel = "Getting Started";
+  if (stats.current.count >= 15) volumeLabel = "High Volume";
+  else if (stats.current.count >= 5) volumeLabel = "Steady Pace";
+
   return (
     <View className={`flex-1 pt-12 ${isDark ? 'bg-[#0f172a]' : 'bg-gray-50'}`}>
 
@@ -286,13 +296,22 @@ export default function StatsScreen() {
         showsVerticalScrollIndicator={false} 
         contentContainerStyle={{ paddingBottom: 100 }}
         onScroll={handleScroll}
-        scrollEventThrottle={16} // Fires smoothly for the scroll listener
+        scrollEventThrottle={16} 
       >
         
-        <Text className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${isDark ? 'text-indigo-400' : 'text-blue-600'}`}>Academic Analytics</Text>
-        <Text className={`text-4xl font-black mb-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>Your Stats</Text>
+        <View className="flex-row justify-between items-center mb-6">
+          <View>
+            <Text className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${isDark ? 'text-indigo-400' : 'text-blue-600'}`}>Academic Analytics</Text>
+            <Text className={`text-4xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>Your Stats</Text>
+          </View>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate("RecentActivityScreen")}
+            className={`p-3 rounded-full shadow-sm ${isDark ? 'bg-indigo-900/50' : 'bg-white shadow-indigo-100'}`}
+          >
+            <ClockIcon color={isDark ? "#818cf8" : "#4f46e5"} size={26} />
+          </TouchableOpacity>
+        </View>
 
-        {/* Weekly / Monthly Toggle */}
         <View className={`p-1.5 rounded-full flex-row mb-8 shadow-inner ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`}>
           <TouchableOpacity 
             onPress={() => setViewMode('weekly')}
@@ -308,14 +327,12 @@ export default function StatsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* --- ANIMATED CHART VIEWS --- */}
-        {/* ADDED: shadow-md shadow-slate-200/50 border border-slate-100 to charts */}
         {viewMode === 'weekly' ? (
           <View className={`rounded-[40px] p-8 shadow-md mb-6 border ${isDark ? 'bg-gray-800 border-gray-800 shadow-none' : 'bg-white border-slate-100 shadow-slate-200/50'}`}>
             <Text className={`text-2xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>Learning Journey</Text>
             <Text className={`text-sm mt-1 mb-10 leading-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Overall mastery progress for the current week</Text>
 
-            <View className="flex-row justify-between items-end h-48 relative">
+            <View className="flex-row justify-between items-end h-48 relative pt-4">
               <View className="absolute w-full h-full justify-between pb-6 opacity-30">
                 <View className={`border-b-2 border-dashed w-full ${isDark ? 'border-gray-600' : 'border-gray-200'}`} />
                 <View className={`border-b-2 border-dashed w-full ${isDark ? 'border-gray-600' : 'border-gray-200'}`} />
@@ -323,17 +340,18 @@ export default function StatsScreen() {
               </View>
 
               {stats.weeklyProgress.map((day) => (
-                <View key={day.label} className="items-center z-10 flex-1">
+                <View key={day.label} className="items-center z-10 flex-1 h-full justify-end">
                   <Animated.View 
                     className={`w-8 rounded-t-xl ${day.isToday ? (isDark ? 'bg-indigo-400' : 'bg-[#283593]') : (isDark ? 'bg-gray-700' : 'bg-[#e8eaf6]')}`}
                     style={{ 
+                      // Scale max height to 80% to ensure label fits inside container
                       height: graphAnim.interpolate({
                         inputRange: [0, 1],
-                        outputRange: ['0%', `${Math.max(day.accuracy, 15)}%`]
+                        outputRange: ['0%', `${Math.max(day.accuracy * 0.8, 5)}%`]
                       }) 
                     }}
                   />
-                  <Text className={`text-[9px] mt-4 font-bold tracking-wider ${day.isToday ? (isDark ? 'text-indigo-300' : 'text-gray-900') : 'text-gray-400'}`}>
+                  <Text className={`text-[9px] mt-3 font-bold tracking-wider ${day.isToday ? (isDark ? 'text-indigo-300' : 'text-gray-900') : 'text-gray-400'}`}>
                     {day.label}
                   </Text>
                 </View>
@@ -342,7 +360,7 @@ export default function StatsScreen() {
           </View>
         ) : (
           <View className={`rounded-[40px] p-8 shadow-md mb-6 border ${isDark ? 'bg-gray-800 border-gray-800 shadow-none' : 'bg-white border-slate-100 shadow-slate-200/50'}`}>
-            <View className="flex-row justify-between items-start mb-6">
+            <View className="flex-row justify-between items-start mb-2">
               <View>
                 <Text className={`text-2xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>Mastery Growth</Text>
                 <Text className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Change in curriculum</Text>
@@ -355,23 +373,25 @@ export default function StatsScreen() {
               </View>
             </View>
 
-            <View className="flex-row justify-around items-end h-40">
-              <View className="items-center w-24">
+            <View className="flex-row justify-around items-end h-48 pt-4">
+              <View className="items-center w-24 h-full justify-end">
                 <AnimatedNumber trigger={true} value={stats.previous.accuracy} format="percent" textClass={`font-bold mb-2 text-lg ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                 <Animated.View 
-                  className={`${isDark ? 'bg-indigo-900/50' : 'bg-[#9fa8da]'} w-20 rounded-t-[32px] opacity-80`} 
+                  className={`${isDark ? 'bg-indigo-900/50' : 'bg-[#9fa8da]'} w-20 rounded-t-[24px] opacity-80`} 
                   style={{ 
-                    height: graphAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', `${Math.max(stats.previous.accuracy, 10)}%`] }) 
+                    // Scale max height to 70% to prevent text from overflowing title
+                    height: graphAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', `${Math.max(stats.previous.accuracy * 0.7, 5)}%`] }) 
                   }} 
                 />
                 <Text className="text-gray-400 text-[10px] mt-3 font-bold uppercase text-center">{previousMonthName}</Text>
               </View>
-              <View className="items-center w-24">
+              
+              <View className="items-center w-24 h-full justify-end">
                 <AnimatedNumber trigger={true} value={stats.current.accuracy} format="percent" textClass={`${isDark ? 'text-indigo-300' : 'text-[#283593]'} font-black text-3xl mb-2`} />
                 <Animated.View 
-                  className={`${isDark ? 'bg-indigo-500' : 'bg-[#283593]'} w-20 rounded-t-[32px]`} 
+                  className={`${isDark ? 'bg-indigo-500' : 'bg-[#283593]'} w-20 rounded-t-[24px]`} 
                   style={{ 
-                    height: graphAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', `${Math.max(stats.current.accuracy, 10)}%`] }) 
+                    height: graphAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', `${Math.max(stats.current.accuracy * 0.7, 5)}%`] }) 
                   }} 
                 />
                 <Text className={`${isDark ? 'text-indigo-300' : 'text-[#283593]'} text-[10px] mt-3 font-bold uppercase text-center`}>{currentMonthName}</Text>
@@ -380,7 +400,6 @@ export default function StatsScreen() {
           </View>
         )}
 
-        {/* AI Insight Card */}
         <View className="bg-[#2a41d0] rounded-[40px] p-8 mb-6 shadow-md shadow-indigo-200 border border-indigo-500/30">
           <View className="flex-row justify-between items-start">
             <SparklesIcon color="white" size={30} />
@@ -402,8 +421,6 @@ export default function StatsScreen() {
           </View>
         </View>
 
-        {/* --- SCROLL-TRIGGERED METRIC BOXES --- */}
-        {/* ADDED: shadow-md shadow-slate-200/50 border border-slate-100 and bg-white to the container */}
         <View 
           onLayout={(e) => setMetricsY(e.nativeEvent.layout.y)}
           className={`rounded-[40px] p-6 flex-row flex-wrap mb-6 border shadow-md ${isDark ? 'bg-gray-800 border-gray-800 shadow-none' : 'bg-white border-slate-100 shadow-slate-200/50'}`}
@@ -459,7 +476,6 @@ export default function StatsScreen() {
               }
             }
 
-            {/* ADDED: border shadow-md and slate-100 borders to list items */}
             return (
               <View key={sub.title} className={`rounded-3xl p-4 flex-row items-center mb-3 border shadow-md ${isDark ? 'bg-gray-800 border-gray-800 shadow-none' : 'bg-white border-slate-100 shadow-slate-200/50'}`}>
                 <View className={`p-3 rounded-2xl ${isDark ? 'bg-indigo-900/50' : 'bg-blue-50'}`}>
@@ -477,28 +493,29 @@ export default function StatsScreen() {
           })
         )}
 
-        {/* --- SCROLL-TRIGGERED STUDY HABITS --- */}
         <Text className={`text-lg font-black mt-8 mb-4 ${isDark ? 'text-white' : 'text-gray-800'}`}>Study Habits</Text>
         
-        {/* ADDED: border shadow-md and slate-100 background transition */}
+        {/*  UPDATED STUDY HABITS PROGRESS BARS */}
         <View 
           onLayout={(e) => setHabitsY(e.nativeEvent.layout.y)}
           className={`rounded-[40px] p-6 mb-20 border shadow-md ${isDark ? 'bg-gray-800 border-gray-800 shadow-none' : 'bg-white border-slate-100 shadow-slate-200/50'}`}
         >
-            <Text className={`${isDark ? 'text-indigo-300' : 'text-blue-900'} font-bold text-xs uppercase tracking-widest mb-2`}>Weekly Quiz Intensity</Text>
-            <View className="flex-row items-baseline mb-4">
-                <Text className={`text-2xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>High Volume</Text>
-                <Text className="text-gray-400 text-[10px] ml-2">
+            <Text className={`${isDark ? 'text-indigo-300' : 'text-blue-900'} font-bold text-xs uppercase tracking-widest mb-2`}>Monthly Quiz Intensity</Text>
+            
+            <View className="flex-row items-baseline justify-between mb-4">
+                <Text className={`text-2xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>{volumeLabel}</Text>
+                <Text className="text-gray-400 text-[10px] font-medium">
                   {currentMonthName.slice(0, 3)}: <AnimatedNumber trigger={triggerHabits} value={stats.current.count} format="number" textClass="font-bold" /> 
-                  {' '}/ {previousMonthName.slice(0, 3)}: {stats.previous.count}
+                  {' '}v. {previousMonthName.slice(0, 3)}: {stats.previous.count}
                 </Text>
             </View>
             
-            <View className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+            <View className={`h-3 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
                 <Animated.View 
-                  className={`h-full ${isDark ? 'bg-indigo-500' : 'bg-blue-800'}`} 
+                  className={`h-full rounded-full ${isDark ? 'bg-indigo-500' : 'bg-blue-800'}`} 
                   style={{ 
-                    width: habitsAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '80%'] }) 
+                    //  Using REAL dynamic percentage calculated at the top
+                    width: habitsAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', `${volumePercentage}%`] }) 
                   }} 
                 />
             </View>
@@ -506,17 +523,21 @@ export default function StatsScreen() {
             <View className="h-8" />
 
             <Text className={`${isDark ? 'text-orange-300' : 'text-orange-900'} font-bold text-xs uppercase tracking-widest mb-2`}>Active Study Minutes</Text>
-            <View className="flex-row items-baseline mb-4">
-                <AnimatedNumber trigger={triggerHabits} value={stats.current.minutes} format="number" textClass={`text-2xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`} />
-                <Text className={`text-2xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}> min</Text>
-                <Text className="text-gray-400 text-[10px] ml-2">vs {previousMonthName.slice(0, 3)}</Text>
+            
+            <View className="flex-row items-baseline justify-between mb-4">
+                <View className="flex-row items-baseline">
+                    <AnimatedNumber trigger={triggerHabits} value={stats.current.minutes} format="number" textClass={`text-2xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`} />
+                    <Text className={`text-2xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}> min</Text>
+                </View>
+                <Text className="text-gray-400 text-[10px] font-medium">vs {previousMonthName.slice(0, 3)}: {stats.previous.minutes}m</Text>
             </View>
             
-            <View className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+            <View className={`h-3 rounded-full overflow-hidden ${isDark ? 'bg-gray-700' : 'bg-gray-200'}`}>
                 <Animated.View 
-                  className="h-full bg-orange-600" 
+                  className="h-full rounded-full bg-orange-500" 
                   style={{ 
-                    width: habitsAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '65%'] }) 
+                    //  Using REAL dynamic percentage calculated at the top
+                    width: habitsAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', `${minutesPercentage}%`] }) 
                   }} 
                 />
             </View>

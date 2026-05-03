@@ -40,7 +40,7 @@ import {
   FireIcon,
   StarIcon as StarSolid,
   PlusCircleIcon,
-  KeyIcon // <-- NEW: Imported for the API Modal
+  KeyIcon 
 } from "react-native-heroicons/solid";
 
 const ICON_MAP = {
@@ -94,7 +94,7 @@ export default function LibraryScreen() {
   const [isGeneratingDaily, setIsGeneratingDaily] = useState(false);
   const [successConfig, setSuccessConfig] = useState({ visible: false, title: "", message: "" });
   
-  // 🚨 NEW: State for API Key Modal
+  //  NEW: State for API Key Modal
   const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
 
   const [isFolderModalVisible, setIsFolderModalVisible] = useState(false);
@@ -105,8 +105,9 @@ export default function LibraryScreen() {
   const [isGridView, setIsGridView] = useState(false);
   const [isPasteModalVisible, setIsPasteModalVisible] = useState(false);
   const [pastedJSON, setPastedJSON] = useState("");
+
+
 const handlePlayDailyChallenge = async () => {
-    // 🚨 CHECK IF ARRAY IS EMPTY
     if (geminiApiKeys.length === 0 || !geminiApiKeys[0].trim()) {
       triggerHaptic(hapticsEnabled, "Warning");
       setIsApiKeyModalVisible(true);
@@ -121,15 +122,29 @@ const handlePlayDailyChallenge = async () => {
     
     setIsGeneratingDaily(true);
     try {
-      const pastDailyQuizzes = quizHistory.filter((q) => q.quizTitle && q.quizTitle.includes("Daily Trivia"));
-      const pastQuestions = pastDailyQuizzes.flatMap((q) => (q.history || []).map((h) => h.question)).slice(0, 50);
-
+      //  NEW: Extract questions from ALL past daily challenges stored in the library
+      const pastDailyQuizzes = quizzes.filter(q => q.subject === "Daily Challenge" || (q.title && q.title.includes("Daily Challenge")));
+      const pastQuestions = pastDailyQuizzes.flatMap(q => (q.questions || []).map(qObj => qObj.question)).slice(-100); 
       
       const dailyQuiz = await generateDailyChallenge(pastQuestions, geminiApiKeys[0]);
     
       if (!dailyQuiz || !dailyQuiz.questions) throw new Error("Invalid AI Response");
-      const finalQuiz = { ...dailyQuiz, id: `daily-${Date.now()}` };
+      
+      //  NEW: Format title with date so it's unique in the library
+      const dateStr = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      const finalQuiz = { 
+        ...dailyQuiz, 
+        id: `daily-${Date.now()}`,
+        title: `Daily Challenge: ${dateStr}`,
+        subject: "Daily Challenge"
+      };
+
+      // Set it as today's active challenge
       if (setDailyChallenge) setDailyChallenge(finalQuiz);
+      
+      // NEW: Save it to the permanent library so it shows up in history and prevents future duplicates!
+      if (addQuiz) addQuiz(finalQuiz);
+
       setIsGeneratingDaily(false);
       navigation.navigate("QuizPlayer", { quiz: finalQuiz });
     } catch (error) {
@@ -544,7 +559,7 @@ const handlePlayDailyChallenge = async () => {
         </ScrollView>
       </View>
 
-      {/* 🚨 NEW: API KEY MISSING MODAL */}
+      {/*  NEW: API KEY MISSING MODAL */}
       <Modal animationType="fade" transparent={true} visible={isApiKeyModalVisible} onRequestClose={() => setIsApiKeyModalVisible(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }}>
           <View className={`w-10/12 rounded-[40px] p-8 items-center shadow-2xl ${isDark ? "bg-gray-900" : "bg-white"}`}>

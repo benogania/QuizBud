@@ -501,7 +501,7 @@ const handlePlayDailyChallenge = async () => {
             </View>
 
             <View className={isGridView ? "flex-row flex-wrap justify-between" : "flex-col"}>
-              <TouchableOpacity className={isGridView ? `w-[48%] aspect-square p-5 rounded-3xl mb-4 shadow-lg justify-between ${isDark ? "bg-indigo-600 shadow-none border border-indigo-500" : "bg-[#8b5cf6] shadow-indigo-200"}` : `flex-row items-center p-4 rounded-3xl mb-3 shadow-md ${isDark ? "bg-indigo-600 shadow-none border border-indigo-500" : "bg-[#8b5cf6] shadow-indigo-200"}`} onPress={() => navigation.navigate("CollectionScreen", { id: "all", name: "All Quizzes" })}>
+              <TouchableOpacity className={isGridView ? `w-[48%] aspect-square p-5 rounded-3xl mb-4 shadow-lg justify-between ${isDark ? "bg-indigo-600 shadow-none border border-indigo-500" : "bg-[#8b5cf6] shadow-indigo-200"}` : `flex-row items-center p-4 rounded-3xl mb-2 shadow-md ${isDark ? "bg-indigo-600 shadow-none border border-indigo-500" : "bg-[#8b5cf6] shadow-indigo-200"}`} onPress={() => navigation.navigate("CollectionScreen", { id: "all", name: "All Quizzes" })}>
                 <View className={`bg-white/20 rounded-2xl ${isGridView ? "self-start p-2.5" : "p-3 mr-4"}`}>
                   <DocumentTextIcon color="#ffffff" size={isGridView ? 26 : 24} />
                 </View>
@@ -522,7 +522,7 @@ const handlePlayDailyChallenge = async () => {
                 const style = colorStyles[index % colorStyles.length];
 
                 return (
-                  <TouchableOpacity key={folder.id} className={isGridView ? `w-[48%] aspect-square p-5 rounded-3xl mb-4 border shadow-sm justify-between ${isDark ? "bg-gray-800 border-gray-700 shadow-none" : "bg-white border-slate-100 shadow-slate-200/50"}` : `flex-row items-center p-4 border rounded-3xl  mb-3 shadow-sm ${isDark ? "bg-gray-800 border-gray-700 shadow-none" : "bg-white border-slate-200 shadow-slate-200/50"}`} onPress={() => navigation.navigate("CollectionScreen", { id: folder.id, name: folder.name })} onLongPress={() => handleLongPressFolder(folder)} delayLongPress={400}>
+                  <TouchableOpacity key={folder.id} className={isGridView ? `w-[48%] aspect-square p-5 rounded-3xl mb-3 border shadow-sm justify-between ${isDark ? "bg-gray-800 border-gray-700 shadow-none" : "bg-white border-slate-100 shadow-slate-200/50"}` : `flex-row items-center p-4 border rounded-3xl mb-2  shadow-sm ${isDark ? "bg-gray-800 border-gray-700 shadow-none" : "bg-white border-slate-200 shadow-slate-200/50"}`} onPress={() => navigation.navigate("CollectionScreen", { id: folder.id, name: folder.name })} onLongPress={() => handleLongPressFolder(folder)} delayLongPress={400}>
                     <View className={`rounded-2xl ${isGridView ? "self-start p-2.5" : "p-3 mr-4"} ${isDark ? style.darkBg : style.bg}`}>
                       <FolderDisplayIcon color={isDark ? style.darkIcon : style.icon} size={24} />
                     </View>

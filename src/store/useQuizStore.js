@@ -13,17 +13,40 @@ export const useQuizStore = create(
       soundEffects: true,
       hapticsEnabled: true,
 
-      // --- ADD THESE FOR API KEY MANAGEMENT ---
-      geminiApiKeys: [],
-      addApiKey: (key) => set((state) => ({ geminiApiKeys: [...state.geminiApiKeys, key] })),
-      removeApiKey: (index) => set((state) => ({
-        geminiApiKeys: state.geminiApiKeys.filter((_, i) => i !== index)
-      })),
+    
+      chatHistory: [], // Array to hold past sessions
+      saveChatSession: (session) =>
+        set((state) => {
+          const existingIndex = state.chatHistory.findIndex(
+            (s) => s.id === session.id,
+          );
+          let updatedHistory = [...state.chatHistory];
 
-      // --- ADD THESE FOR NOTIFICATIONS ---
+          if (existingIndex >= 0) {
+            updatedHistory[existingIndex] = session; // Update existing session
+          } else {
+            updatedHistory = [session, ...state.chatHistory]; 
+          }
+          return { chatHistory: updatedHistory };
+        }),
+      deleteChatSession: (sessionId) =>
+        set((state) => ({
+          chatHistory: state.chatHistory.filter((s) => s.id !== sessionId),
+        })),
+
+
+      geminiApiKeys: [],
+      addApiKey: (key) =>
+        set((state) => ({ geminiApiKeys: [...state.geminiApiKeys, key] })),
+      removeApiKey: (index) =>
+        set((state) => ({
+          geminiApiKeys: state.geminiApiKeys.filter((_, i) => i !== index),
+        })),
+
+      
       remindersEnabled: false,
       setRemindersEnabled: (enabled) => set({ remindersEnabled: enabled }),
-      reminderTime: { hour: 20, minute: 0 }, // Default is 8:00 PM
+      reminderTime: { hour: 20, minute: 0 },
       setReminderTime: (time) => set({ reminderTime: time }),
 
       aiTone: "Standard",
@@ -43,7 +66,7 @@ export const useQuizStore = create(
           dailyChallenge: quiz,
           lastDailyFetch: new Date().toDateString(),
         }),
-        
+
       setAiStatsInsight: (insight) =>
         set({
           aiStatsInsight: insight,
@@ -58,12 +81,12 @@ export const useQuizStore = create(
 
       theme: "light",
 
-      // Bulletproof theme setter
+      
       setTheme: (newTheme) => set({ theme: newTheme }),
 
-      collections: [], // Array to hold: { id: string, name: string, quizIds: array }
+      collections: [], 
 
-      // Add these new functions to create, edit, and delete collections
+      
       createCollection: (name) =>
         set((state) => ({
           collections: [
@@ -129,7 +152,7 @@ export const useQuizStore = create(
             const qId = item.quiz ? item.quiz.id : item.id;
             return !quizIdsArray.includes(qId);
           }),
-          // Also strip them out of any collections they were in
+          
           collections: state.collections.map((c) => ({
             ...c,
             quizIds: (c.quizIds || []).filter(
@@ -157,8 +180,8 @@ export const useQuizStore = create(
           }),
         })),
 
-      //The Modified update quiz 
-      
+      //The Modified update quiz
+
       updateQuiz: (id, updatedQuizData) =>
         set((state) => ({
           quizzes: state.quizzes.map((item) => {
@@ -184,9 +207,9 @@ export const useQuizStore = create(
       // Wipes only the stats/history, keeps the created quizzes
       clearHistory: () =>
         set({
-          quizHistory: [], 
-          aiStatsInsight: null, 
-          lastStatsFetch: null, 
+          quizHistory: [],
+          aiStatsInsight: null,
+          lastStatsFetch: null,
           stats: {
             totalScore: 0,
             quizzesTaken: 0,
@@ -199,15 +222,15 @@ export const useQuizStore = create(
       factoryReset: () =>
         set({
           quizzes: [],
-          collections: [], 
+          collections: [],
           quizHistory: [],
-          geminiApiKeys: [], // Wipes the API keys too!
+          geminiApiKeys: [],
           spellingData: [],
           grammarPracticeData: [],
           speakingScenarios: [],
           aiStatsInsight: null,
           lastStatsFetch: null,
-          remindersEnabled: false, // Turns off the toggle on reset
+          remindersEnabled: false,
           stats: {
             totalScore: 0,
             quizzesTaken: 0,

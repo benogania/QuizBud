@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
   Keyboard,
   Alert,
-  Modal
+  Modal,
+  ScrollView
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuizStore } from '../store/useQuizStore';
@@ -25,6 +26,9 @@ import {
   PaperClipIcon, 
   DocumentTextIcon, 
   XMarkIcon,
+  ClockIcon,
+  TrashIcon,
+  PlusIcon
 } from 'react-native-heroicons/outline';
 import { 
   SparklesIcon, 
@@ -33,35 +37,47 @@ import {
   CheckCircleIcon
 } from 'react-native-heroicons/solid';
 
+const DEFAULT_MESSAGE = { 
+  id: '1', 
+  role: 'model', 
+  text: "Hi there! I'm QuizBud AI. 🧠✨\n\nStuck on a concept? Upload a document, ask a question, or long-press my responses to generate a custom quiz!" 
+};
+
 export default function AIAssistantScreen() {
   const navigation = useNavigation();
-  
-  const { theme, addQuiz, aiTone, hapticsEnabled } = useQuizStore(); 
-  const isDark = theme === 'dark';
-  
   const insets = useSafeAreaInsets();
   const flatListRef = useRef(null);
 
-  // Chat States
+  // Destructure the new history methods from your store
+  const { 
+    theme, 
+    addQuiz, 
+    aiTone, 
+    hapticsEnabled, 
+    chatHistory = [], 
+    saveChatSession,
+    deleteChatSession 
+  } = useQuizStore(); 
+  
+  const isDark = theme === 'dark';
+
+  // Chat & Session States
+  const [currentSessionId, setCurrentSessionId] = useState(Date.now().toString());
+  const [messages, setMessages] = useState([DEFAULT_MESSAGE]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false); 
   const [selectedFile, setSelectedFile] = useState(null);
+
+  // History Modal State
+  const [isHistoryModalVisible, setIsHistoryModalVisible] = useState(false);
 
   // Selection & Quiz Generation States
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState([]);
   const [isQuizModalVisible, setIsQuizModalVisible] = useState(false);
   const [quizQuestionCount, setQuizQuestionCount] = useState(5);
-  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false); // Controls the new Loading Screen!
-
-  const [messages, setMessages] = useState([
-    { 
-      id: '1', 
-      role: 'model', 
-      text: "Hi there! I'm QuizBud AI. 🧠✨\n\nStuck on a concept? Upload a document, ask a question, or long-press my responses to generate a custom quiz!" 
-    }
-  ]);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
 
   const getToneInstructions = () => {
     if (aiTone === "Explain like I'm 5") return "Use very simple language, relatable analogies, and a fun, encouraging tone. Assume the user is a complete beginner.";
@@ -74,6 +90,35 @@ export default function AIAssistantScreen() {
     const keyboardDidHideListener = Keyboard.addListener(Platform.OS === 'android' ? 'keyboardDidHide' : 'keyboardWillHide', () => setKeyboardVisible(false));
     return () => { keyboardDidHideListener.remove(); keyboardDidShowListener.remove(); };
   }, []);
+
+  // Auto-save session when messages change (if there's actual conversation)
+  useEffect(() => {
+    if (messages.length > 1 && saveChatSession) {
+      const firstUserMessage = messages.find(m => m.role === 'user');
+      const previewText = firstUserMessage ? firstUserMessage.text : "New Chat";
+      
+      saveChatSession({
+        id: currentSessionId,
+        title: previewText.substring(0, 40) + (previewText.length > 40 ? '...' : ''),
+        date: new Date().toISOString(),
+        messages: messages
+      });
+    }
+  }, [messages, currentSessionId]);
+
+  const handleStartNewChat = () => {
+    setCurrentSessionId(Date.now().toString());
+    setMessages([DEFAULT_MESSAGE]);
+    setIsHistoryModalVisible(false);
+    triggerHaptic(hapticsEnabled, 'Light');
+  };
+
+  const handleLoadSession = (session) => {
+    setCurrentSessionId(session.id);
+    setMessages(session.messages);
+    setIsHistoryModalVisible(false);
+    triggerHaptic(hapticsEnabled, 'Light');
+  };
 
   const handleAttachFile = async () => {
     try {
@@ -116,7 +161,7 @@ export default function AIAssistantScreen() {
     }
   };
 
-  // --- SELECTION LOGIC ---
+  // --- SELECTION & QUIZ LOGIC ---
   const handleLongPressMessage = (item) => {
     if (item.role !== 'model') return; 
     triggerHaptic(hapticsEnabled, 'Medium');
@@ -137,10 +182,9 @@ export default function AIAssistantScreen() {
     }
   };
 
-  // --- QUIZ GENERATION LOGIC ---
   const handleCreateQuizFromSelection = async () => {
     setIsQuizModalVisible(false);
-    setIsGeneratingQuiz(true); // Triggers the loading screen
+    setIsGeneratingQuiz(true); 
     
     const selectedTextContext = messages
       .filter(m => selectedMessageIds.includes(m.id))
@@ -180,13 +224,13 @@ export default function AIAssistantScreen() {
       
       setIsSelectionMode(false);
       setSelectedMessageIds([]);
-      setIsGeneratingQuiz(false); // Turn off loading screen
+      setIsGeneratingQuiz(false); 
       
       Alert.alert("Success!", "Quiz saved to your Library!");
       navigation.navigate("QuizPlayer", { quiz: finalQuiz });
 
     } catch (error) {
-      setIsGeneratingQuiz(false); // Turn off loading screen on error
+      setIsGeneratingQuiz(false);
       Alert.alert("Formatting Error", "The AI generated an incomplete quiz. Please try generating again!");
     }
   };
@@ -246,13 +290,11 @@ export default function AIAssistantScreen() {
   return (
     <View className={`flex-1 ${isDark ? 'bg-[#0f172a]' : 'bg-gray-50'}`} style={{ paddingTop: insets.top }}>
       
+      {/* HEADER SECTION */}
       {isSelectionMode ? (
         <View className={`flex-row items-center justify-between px-5 py-4 border-b ${isDark ? 'bg-indigo-900/40 border-indigo-900' : 'bg-indigo-50 border-indigo-100'}`}>
           <View className="flex-row items-center">
-            <TouchableOpacity 
-              onPress={() => { setIsSelectionMode(false); setSelectedMessageIds([]); }} 
-              className="p-2 -ml-2 rounded-full"
-            >
+            <TouchableOpacity onPress={() => { setIsSelectionMode(false); setSelectedMessageIds([]); }} className="p-2 -ml-2 rounded-full">
               <XMarkIcon color={isDark ? "white" : "#1e3a8a"} size={24} />
             </TouchableOpacity>
             <Text className={`text-lg font-bold ml-2 ${isDark ? 'text-white' : 'text-blue-900'}`}>
@@ -260,10 +302,7 @@ export default function AIAssistantScreen() {
             </Text>
           </View>
 
-          <TouchableOpacity 
-            onPress={() => setIsQuizModalVisible(true)}
-            className={`flex-row items-center px-4 py-2 rounded-full shadow-sm ${isDark ? 'bg-indigo-600' : 'bg-indigo-600'}`}
-          >
+          <TouchableOpacity onPress={() => setIsQuizModalVisible(true)} className={`flex-row items-center px-4 py-2 rounded-full shadow-sm ${isDark ? 'bg-indigo-600' : 'bg-indigo-600'}`}>
              <BoltIcon color="white" size={16} />
              <Text className="ml-1 font-bold text-sm text-white">Make Quiz</Text>
           </TouchableOpacity>
@@ -279,14 +318,19 @@ export default function AIAssistantScreen() {
               <Text className={`text-lg font-bold ml-2 ${isDark ? 'text-white' : 'text-blue-900'}`}>Study Assistant</Text>
             </View>
           </View>
+          <View className="flex-row items-center">
+             <TouchableOpacity onPress={handleStartNewChat} className="p-2 mr-1">
+              <PlusIcon color={isDark ? "white" : "#1e3a8a"} size={24} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setIsHistoryModalVisible(true)} className="p-2 -mr-2">
+              <ClockIcon color={isDark ? "white" : "#1e3a8a"} size={24} />
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "android" ? (isKeyboardVisible ? 25 : 0) : 0} 
-      >
+      {/* CHAT INTERFACE */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={Platform.OS === "android" ? (isKeyboardVisible ? 25 : 0) : 0}>
         <FlatList
           ref={flatListRef}
           data={messages}
@@ -309,9 +353,7 @@ export default function AIAssistantScreen() {
         {selectedFile && !isSelectionMode && (
           <View className={`mx-5 flex-row items-center self-start px-3 py-2 rounded-xl mb-3 ${isDark ? 'bg-gray-800' : 'bg-indigo-50 border border-indigo-100'}`}>
             <DocumentTextIcon color={isDark ? "#a5b4fc" : "#4f46e5"} size={16} />
-            <Text className={`text-xs font-bold mx-2 ${isDark ? 'text-gray-300' : 'text-indigo-900'}`} numberOfLines={1} style={{ maxWidth: 200 }}>
-              {selectedFile.name}
-            </Text>
+            <Text className={`text-xs font-bold mx-2 ${isDark ? 'text-gray-300' : 'text-indigo-900'}`} numberOfLines={1} style={{ maxWidth: 200 }}>{selectedFile.name}</Text>
             <TouchableOpacity onPress={() => setSelectedFile(null)}>
               <XMarkIcon color={isDark ? "#9ca3af" : "#9ca3af"} size={16} />
             </TouchableOpacity>
@@ -319,17 +361,10 @@ export default function AIAssistantScreen() {
         )}
 
         {!isSelectionMode && (
-          <View 
-            className={`px-5 py-4 border-t flex-row items-end ${isDark ? 'bg-[#0f172a] border-gray-800' : 'bg-white border-gray-200'}`}
-            style={{ paddingBottom: isKeyboardVisible ? 16 : Math.max(insets.bottom, 16) }}
-          >
-            <TouchableOpacity 
-              onPress={handleAttachFile}
-              className={`p-3 rounded-full mr-2 mb-0.5 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}
-            >
+          <View className={`px-5 py-4 border-t flex-row items-end ${isDark ? 'bg-[#0f172a] border-gray-800' : 'bg-white border-gray-200'}`} style={{ paddingBottom: isKeyboardVisible ? 16 : Math.max(insets.bottom, 16) }}>
+            <TouchableOpacity onPress={handleAttachFile} className={`p-3 rounded-full mr-2 mb-0.5 ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
               <PaperClipIcon color={isDark ? "#9ca3af" : "#6b7280"} size={22} />
             </TouchableOpacity>
-
             <TextInput
               className={`flex-1 rounded-3xl px-5 py-3.5 max-h-32 text-base ${isDark ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-900'}`}
               placeholder="Ask a question..."
@@ -339,9 +374,7 @@ export default function AIAssistantScreen() {
               multiline
             />
             <TouchableOpacity 
-              className={`ml-2 w-12 h-12 rounded-full items-center justify-center ${
-                (inputText.trim() || selectedFile) ? 'bg-indigo-600' : (isDark ? 'bg-gray-800' : 'bg-gray-200')
-              }`}
+              className={`ml-2 w-12 h-12 rounded-full items-center justify-center ${(inputText.trim() || selectedFile) ? 'bg-indigo-600' : (isDark ? 'bg-gray-800' : 'bg-gray-200')}`}
               onPress={sendMessage}
               disabled={(!inputText.trim() && !selectedFile) || isLoading}
             >
@@ -351,7 +384,57 @@ export default function AIAssistantScreen() {
         )}
       </KeyboardAvoidingView>
 
-      {/* MODAL: SELECT QUESTION COUNT */}
+      {/* CHAT HISTORY MODAL */}
+      <Modal animationType="slide" transparent={true} visible={isHistoryModalVisible} onRequestClose={() => setIsHistoryModalVisible(false)}>
+        <View className="flex-1 justify-end" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <View className={`h-3/4 rounded-t-3xl p-6 shadow-2xl ${isDark ? "bg-gray-900" : "bg-white"}`}>
+            <View className="flex-row justify-between items-center mb-6">
+              <Text className={`text-xl font-extrabold ${isDark ? "text-white" : "text-gray-900"}`}>Chat History</Text>
+              <TouchableOpacity onPress={() => setIsHistoryModalVisible(false)} className={`p-2 rounded-full ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                <XMarkIcon color={isDark ? "white" : "black"} size={20} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity 
+              onPress={handleStartNewChat} 
+              className={`mb-4 flex-row items-center justify-center p-4 rounded-xl border ${isDark ? 'border-indigo-500 bg-indigo-900/30' : 'border-indigo-300 bg-indigo-50'}`}
+            >
+              <PlusIcon color={isDark ? "#818cf8" : "#4f46e5"} size={20} />
+              <Text className={`ml-2 font-bold ${isDark ? "text-indigo-300" : "text-indigo-700"}`}>Start New Chat</Text>
+            </TouchableOpacity>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {chatHistory.length === 0 ? (
+                <Text className={`text-center mt-10 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>No previous chats found.</Text>
+              ) : (
+                chatHistory.map((session) => (
+                  <TouchableOpacity 
+                    key={session.id}
+                    onPress={() => handleLoadSession(session)}
+                    className={`flex-row items-center justify-between p-4 mb-3 rounded-2xl ${currentSessionId === session.id ? (isDark ? 'bg-gray-800 border border-gray-700' : 'bg-gray-100 border border-gray-200') : (isDark ? 'bg-gray-800/50' : 'bg-gray-50')}`}
+                  >
+                    <View className="flex-1 mr-4">
+                      <Text className={`font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`} numberOfLines={1}>
+                        {session.title}
+                      </Text>
+                      <Text className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {new Date(session.date).toLocaleDateString()}
+                      </Text>
+                    </View>
+                    {deleteChatSession && (
+                      <TouchableOpacity onPress={() => deleteChatSession(session.id)} className="p-2">
+                        <TrashIcon color="#ef4444" size={20} />
+                      </TouchableOpacity>
+                    )}
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* QUIZ GENERATION MODALS*/}
       <Modal animationType="fade" transparent={true} visible={isQuizModalVisible} onRequestClose={() => setIsQuizModalVisible(false)}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" }}>
           <View className={`w-10/12 rounded-[32px] p-6 shadow-2xl ${isDark ? "bg-gray-900" : "bg-white"}`}>
@@ -394,7 +477,6 @@ export default function AIAssistantScreen() {
         </View>
       </Modal>
 
-      {/* NEW: FULL SCREEN LOADING OVERLAY */}
       <Modal animationType="fade" transparent={true} visible={isGeneratingQuiz} onRequestClose={() => {}}>
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "center", alignItems: "center" }}>
           <View className={`w-10/12 rounded-[40px] p-8 items-center shadow-2xl ${isDark ? "bg-[#1e1e2d] border border-gray-800" : "bg-white"}`}>

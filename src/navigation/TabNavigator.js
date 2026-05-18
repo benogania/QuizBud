@@ -5,25 +5,26 @@ import {
   BookOpenIcon as LibraryIcon, 
   AcademicCapIcon, 
   ChartBarIcon, 
-  Cog6ToothIcon 
+  Cog6ToothIcon, 
+  SparklesIcon
 } from 'react-native-heroicons/outline';
 import { 
   BookOpenIcon as LibraryIconSolid, 
   AcademicCapIcon as AcademicCapIconSolid, 
   ChartBarIcon as ChartBarIconSolid, 
-  Cog6ToothIcon as Cog6ToothIconSolid 
+  Cog6ToothIcon as Cog6ToothIconSolid, 
+  SparklesIcon as SparklesIconSolid
 } from 'react-native-heroicons/solid';
 
-// Import your tab screens
 import LibraryScreen from '../screens/LibraryScreen';
 import LearnScreen from '../screens/LearnScreen'; 
 import StatsScreen from '../screens/StatsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import AIAssistantScreen from '../screens/AIAssistantScreen';
 
 const Tab = createBottomTabNavigator();
 
 export default function TabNavigator() {
-  // Pull the theme from your store
   const { theme } = useQuizStore();
   const isDark = theme === 'dark';
 
@@ -31,6 +32,7 @@ export default function TabNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         // DYNAMIC COLORS based on theme
         tabBarStyle: {
           backgroundColor: isDark ? '#0f172a' : '#ffffff', 
@@ -55,12 +57,15 @@ export default function TabNavigator() {
             return focused ? <ChartBarIconSolid size={size} color={color} /> : <ChartBarIcon size={size} color={color} />;
           } else if (route.name === 'Settings') {
             return focused ? <Cog6ToothIconSolid size={size} color={color} /> : <Cog6ToothIcon size={size} color={color} />;
+          } else if (route.name === 'AIChat') {
+            return focused ? <SparklesIconSolid size={size} color={color} /> : <SparklesIcon size={size} color={color} />;
           }
         },
       })}
     >
       <Tab.Screen name="Library" component={LibraryScreen} />
       <Tab.Screen name="Learn" component={LearnScreen} />
+      <Tab.Screen name="AIChat" component={AIAssistantScreen} />
       <Tab.Screen name="Stats" component={StatsScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>

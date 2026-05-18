@@ -284,7 +284,7 @@ export default function AIAssistantScreen() {
 
       <KeyboardAvoidingView 
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "android" ? (isKeyboardVisible ? 25 : 0) : 0} 
       >
         <FlatList

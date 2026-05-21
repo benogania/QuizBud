@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.QuizBud"
+      "bundleIdentifier": "com.bendo.QuizBud"
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
